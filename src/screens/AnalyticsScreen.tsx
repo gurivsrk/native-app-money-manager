@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
+import { useTheme } from '../context/ThemeContext';
 import { Transaction, TransactionType } from '../types';
 import { MonthCalendarBar } from '../components/MonthCalendarBar';
 import { CalendarMonthPickerModal } from '../components/CalendarMonthPickerModal';
@@ -21,11 +22,14 @@ import {
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { ReportCharts } from '../components/ReportCharts';
 import dayjs, { getCurrentYearMonthString, formatYearMonth } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 type MainViewMode = 'insights' | 'reports';
 
 export const AnalyticsScreen: React.FC = () => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const {
     categories,
     accounts,
@@ -35,7 +39,7 @@ export const AnalyticsScreen: React.FC = () => {
     deleteTransaction,
   } = useBudget();
 
-  // Top view mode: Insights (Breakdown & Trends) vs Reports (Statements & Exports)
+  // Top view mode: Insights vs Reports
   const [viewMode, setViewMode] = useState<MainViewMode>('insights');
 
   // Insights filter type: Expense vs Income
@@ -138,65 +142,58 @@ Exported from Money Manager App`;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
 
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerSubtitle}>Financial Intelligence</Text>
-          <Text style={styles.headerTitle}>Analytics & Reports</Text>
+          <Text style={styles.headerSubtitle}>Intelligence & Statements</Text>
+          <Text style={styles.headerTitle}>Analytics</Text>
         </View>
 
         {viewMode === 'reports' && (
-          <TouchableOpacity
-            style={styles.shareBtn}
-            onPress={handleShareReport}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+          <TouchableOpacity style={styles.shareBtn} onPress={handleShareReport} activeOpacity={0.8}>
+            <Ionicons name="share-outline" size={16} color="#FFFFFF" />
             <Text style={styles.shareBtnText}>Export</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Primary View Switcher: Insights vs Reports */}
-      <View style={styles.viewModeContainer}>
-        <View style={styles.viewModePillGroup}>
+      {/* Apple iOS Native Segmented Control */}
+      <View style={styles.segmentedContainer}>
+        <View style={styles.segmentedControl}>
           <TouchableOpacity
-            style={[styles.viewModeBtn, viewMode === 'insights' && styles.viewModeBtnActive]}
+            style={[styles.segmentBtn, viewMode === 'insights' && styles.segmentBtnActive]}
             onPress={() => setViewMode('insights')}
             activeOpacity={0.8}
           >
             <Ionicons
               name="pie-chart"
               size={15}
-              color={viewMode === 'insights' ? '#FFFFFF' : theme.colors.textSecondary}
+              color={viewMode === 'insights' ? theme.colors.text : theme.colors.textSecondary}
             />
             <Text
-              style={[
-                styles.viewModeBtnText,
-                viewMode === 'insights' && styles.viewModeBtnTextActive,
-              ]}
+              style={[styles.segmentText, viewMode === 'insights' && styles.segmentTextActive]}
             >
               Insights & Charts
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.viewModeBtn, viewMode === 'reports' && styles.viewModeBtnActive]}
+            style={[styles.segmentBtn, viewMode === 'reports' && styles.segmentBtnActive]}
             onPress={() => setViewMode('reports')}
             activeOpacity={0.8}
           >
             <Ionicons
               name="document-text"
               size={15}
-              color={viewMode === 'reports' ? '#FFFFFF' : theme.colors.textSecondary}
+              color={viewMode === 'reports' ? theme.colors.text : theme.colors.textSecondary}
             />
             <Text
-              style={[
-                styles.viewModeBtnText,
-                viewMode === 'reports' && styles.viewModeBtnTextActive,
-              ]}
+              style={[styles.segmentText, viewMode === 'reports' && styles.segmentTextActive]}
             >
               Financial Reports
             </Text>
@@ -208,32 +205,35 @@ Exported from Money Manager App`;
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ================= INSIGHTS VIEW ================= */}
-        {viewMode === 'insights' && (
+        {viewMode === 'insights' ? (
+          // ================= VIEW MODE 1: INSIGHTS & BREAKDOWN =================
           <>
-            {/* Interactive Month Selector */}
+            {/* Month Navigator */}
             <MonthCalendarBar
               selectedYearMonth={selectedYM}
               onChangeYearMonth={setSelectedYM}
               onOpenPicker={() => setPickerModalVisible(true)}
             />
 
-            {/* Income / Expense Toggle */}
-            <View style={styles.toggleRow}>
+            {/* Income / Expense Apple Filter Pills */}
+            <View style={styles.typeFilterRow}>
               <TouchableOpacity
-                style={[styles.toggleBtn, filterType === 'expense' && styles.toggleBtnActiveExpense]}
+                style={[
+                  styles.typeFilterBtn,
+                  filterType === 'expense' && styles.typeFilterBtnExpense,
+                ]}
                 onPress={() => setFilterType('expense')}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
                 <Ionicons
                   name="arrow-down-circle"
                   size={16}
-                  color={filterType === 'expense' ? '#FFF' : theme.colors.dangerLight}
+                  color={filterType === 'expense' ? theme.colors.danger : theme.colors.textSecondary}
                 />
                 <Text
                   style={[
-                    styles.toggleBtnText,
-                    filterType === 'expense' && styles.toggleBtnTextActive,
+                    styles.typeFilterText,
+                    filterType === 'expense' && styles.typeFilterTextExpense,
                   ]}
                 >
                   Expenses
@@ -241,19 +241,22 @@ Exported from Money Manager App`;
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.toggleBtn, filterType === 'income' && styles.toggleBtnActiveIncome]}
+                style={[
+                  styles.typeFilterBtn,
+                  filterType === 'income' && styles.typeFilterBtnIncome,
+                ]}
                 onPress={() => setFilterType('income')}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
                 <Ionicons
                   name="arrow-up-circle"
                   size={16}
-                  color={filterType === 'income' ? '#FFF' : theme.colors.successLight}
+                  color={filterType === 'income' ? theme.colors.success : theme.colors.textSecondary}
                 />
                 <Text
                   style={[
-                    styles.toggleBtnText,
-                    filterType === 'income' && styles.toggleBtnTextActive,
+                    styles.typeFilterText,
+                    filterType === 'income' && styles.typeFilterTextIncome,
                   ]}
                 >
                   Income
@@ -261,22 +264,18 @@ Exported from Money Manager App`;
               </TouchableOpacity>
             </View>
 
-            {/* Summary Highlight Card */}
+            {/* Total Hero Card */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryTop}>
                 <View>
                   <Text style={styles.summaryLabel}>
-                    Total {filterType === 'expense' ? 'Expenses' : 'Income'}
+                    Total {filterType === 'expense' ? 'Spending' : 'Income'} •{' '}
+                    {formatYearMonth(selectedYM)}
                   </Text>
                   <Text
                     style={[
                       styles.summaryAmount,
-                      {
-                        color:
-                          filterType === 'expense'
-                            ? theme.colors.dangerLight
-                            : theme.colors.successLight,
-                      },
+                      { color: filterType === 'expense' ? theme.colors.danger : theme.colors.success },
                     ]}
                   >
                     {formatAmount(totalInsightsAmount)}
@@ -284,17 +283,17 @@ Exported from Money Manager App`;
                 </View>
                 <View style={styles.entriesBadge}>
                   <Text style={styles.entriesBadgeText}>
-                    {filteredInsightsTxs.length} Transactions
+                    {filteredInsightsTxs.length} {filteredInsightsTxs.length === 1 ? 'txn' : 'txns'}
                   </Text>
                 </View>
               </View>
 
               {categoryBreakdown.length > 0 && (
                 <View style={styles.topCategoryRow}>
-                  <Ionicons name="flame" size={16} color={theme.colors.warningLight} />
+                  <Ionicons name="trophy-outline" size={14} color={theme.colors.warning} />
                   <Text style={styles.topCategoryText}>
                     Top Category:{' '}
-                    <Text style={{ fontWeight: '800', color: theme.colors.text }}>
+                    <Text style={{ fontWeight: '700', color: theme.colors.text }}>
                       {categoryBreakdown[0].name} ({categoryBreakdown[0].percent}%)
                     </Text>
                   </Text>
@@ -302,132 +301,139 @@ Exported from Money Manager App`;
               )}
             </View>
 
-            {/* Interactive Charts Section */}
-            <ReportCharts
-              reportMode="monthly"
-              selectedYM={selectedYM}
-              selectedYear={dayjs(selectedYM).year()}
-              totalIncome={totalIncome}
-              totalExpense={totalExpense}
-              netSavings={netSavings}
-              categoriesData={categoryBreakdown}
-              transactions={transactions}
-              onSelectCategory={(cat) => setSelectedCategory(cat)}
-            />
+            {/* Visual Charts Component */}
+            {filteredInsightsTxs.length > 0 && (
+              <ReportCharts
+                reportMode="monthly"
+                selectedYM={selectedYM}
+                selectedYear={selectedYear}
+                totalIncome={totalInsightsAmount}
+                totalExpense={totalInsightsAmount}
+                netSavings={0}
+                categoriesData={categoryBreakdown}
+                transactions={transactions}
+                onSelectCategory={(cat) => setSelectedCategory(cat)}
+              />
+            )}
 
-            {/* Category Breakdown Header */}
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="list" size={17} color={theme.colors.primaryLight} />
-                <Text style={styles.sectionTitle}>Category Breakdown</Text>
-              </View>
-              <Text style={styles.hintText}>Tap category to inspect</Text>
+            {/* Category Drilldown Inset Group */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>CATEGORY SPENDING BREAKDOWN</Text>
+              <Text style={styles.sectionHint}>Tap for details</Text>
             </View>
 
-            {/* Breakdown List */}
             {categoryBreakdown.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Ionicons name="pie-chart-outline" size={40} color={theme.colors.textTertiary} />
-                <Text style={styles.emptyTitle}>No data recorded</Text>
+                <Ionicons name="pie-chart-outline" size={36} color={theme.colors.textTertiary} />
+                <Text style={styles.emptyTitle}>No transactions recorded</Text>
                 <Text style={styles.emptySubtitle}>
-                  No {filterType} transactions recorded for {formatYearMonth(selectedYM)}.
+                  Add {filterType} entries for {formatYearMonth(selectedYM)} to see distribution.
                 </Text>
               </View>
             ) : (
-              categoryBreakdown.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.categoryCard}
-                  onPress={() => setSelectedCategory(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.categoryTopRow}>
-                    <View style={styles.categoryLeft}>
+              <View style={styles.groupedCard}>
+                {categoryBreakdown.map((cat, index) => (
+                  <React.Fragment key={cat.id}>
+                    {index > 0 && <View style={styles.separator} />}
+                    <TouchableOpacity
+                      style={styles.categoryItem}
+                      onPress={() => setSelectedCategory(cat)}
+                      activeOpacity={0.7}
+                    >
                       <View
                         style={[
-                          styles.catIconWrap,
-                          { backgroundColor: `${item.color}20`, borderColor: `${item.color}40` },
+                          styles.catIconBadge,
+                          { backgroundColor: isDark ? `${cat.color}25` : `${cat.color}15` },
                         ]}
                       >
-                        <Ionicons name={item.icon as any} size={18} color={item.color} />
+                        <Ionicons name={cat.icon as any} size={18} color={cat.color} />
                       </View>
-                      <View>
-                        <Text style={styles.catName}>{item.name}</Text>
-                        <Text style={styles.catPercent}>{item.percent}% of total</Text>
+
+                      <View style={styles.catInfo}>
+                        <View style={styles.catTopRow}>
+                          <Text style={styles.catName} numberOfLines={1}>
+                            {cat.name}
+                          </Text>
+                          <Text style={styles.catAmount}>{formatAmount(cat.amount)}</Text>
+                        </View>
+
+                        <View style={styles.progressBarWrap}>
+                          <View
+                            style={[
+                              styles.progressBarFill,
+                              { width: `${cat.percent}%`, backgroundColor: cat.color },
+                            ]}
+                          />
+                        </View>
+
+                        <View style={styles.catMetaRow}>
+                          <Text style={styles.catPercent}>{cat.percent}% of total</Text>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={14}
+                            color={theme.colors.textTertiary}
+                          />
+                        </View>
                       </View>
-                    </View>
-
-                    <View style={styles.categoryRight}>
-                      <Text style={styles.catAmount}>{formatAmount(item.amount)}</Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={16}
-                        color={theme.colors.textTertiary}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Visual Progress Bar */}
-                  <View style={styles.progressBarTrack}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          width: `${Math.min(100, Math.max(2, item.percent))}%`,
-                          backgroundColor: item.color,
-                        },
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
-              ))
+                    </TouchableOpacity>
+                  </React.Fragment>
+                ))}
+              </View>
             )}
           </>
-        )}
-
-        {/* ================= REPORTS VIEW ================= */}
-        {viewMode === 'reports' && (
+        ) : (
+          // ================= VIEW MODE 2: FINANCIAL REPORTS =================
           <>
             {/* Period Selector: Monthly vs Annual */}
-            <View style={styles.reportPeriodRow}>
+            <View style={styles.typeFilterRow}>
               <TouchableOpacity
                 style={[
-                  styles.periodBtn,
-                  reportMode === 'monthly' && styles.periodBtnActive,
+                  styles.typeFilterBtn,
+                  reportMode === 'monthly' && styles.typeFilterBtnSelected,
                 ]}
                 onPress={() => setReportMode('monthly')}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
+                <Ionicons
+                  name="calendar-outline"
+                  size={15}
+                  color={reportMode === 'monthly' ? theme.colors.primary : theme.colors.textSecondary}
+                />
                 <Text
                   style={[
-                    styles.periodBtnText,
-                    reportMode === 'monthly' && styles.periodBtnTextActive,
+                    styles.typeFilterText,
+                    reportMode === 'monthly' && styles.typeFilterTextSelected,
                   ]}
                 >
-                  Monthly Report
+                  Monthly Summary
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
-                  styles.periodBtn,
-                  reportMode === 'yearly' && styles.periodBtnActive,
+                  styles.typeFilterBtn,
+                  reportMode === 'yearly' && styles.typeFilterBtnSelected,
                 ]}
                 onPress={() => setReportMode('yearly')}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
               >
+                <Ionicons
+                  name="calendar"
+                  size={15}
+                  color={reportMode === 'yearly' ? theme.colors.primary : theme.colors.textSecondary}
+                />
                 <Text
                   style={[
-                    styles.periodBtnText,
-                    reportMode === 'yearly' && styles.periodBtnTextActive,
+                    styles.typeFilterText,
+                    reportMode === 'yearly' && styles.typeFilterTextSelected,
                   ]}
                 >
-                  Annual Statement
+                  Annual Summary
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Date Navigator */}
+            {/* Time Picker */}
             {reportMode === 'monthly' ? (
               <MonthCalendarBar
                 selectedYearMonth={selectedYM}
@@ -435,98 +441,67 @@ Exported from Money Manager App`;
                 onOpenPicker={() => setPickerModalVisible(true)}
               />
             ) : (
-              <View style={styles.yearNavigator}>
+              <View style={styles.yearPickerRow}>
                 <TouchableOpacity
-                  style={styles.yearBtn}
+                  style={styles.yearArrowBtn}
                   onPress={() => setSelectedYear((y) => y - 1)}
-                  activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-back" size={18} color={theme.colors.textSecondary} />
+                  <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
                 </TouchableOpacity>
-                <View style={styles.yearBadge}>
-                  <Ionicons name="calendar" size={16} color={theme.colors.primaryLight} />
-                  <Text style={styles.yearText}>Calendar Year {selectedYear}</Text>
+
+                <View style={styles.yearDisplayBadge}>
+                  <Ionicons name="calendar-outline" size={15} color={theme.colors.primary} />
+                  <Text style={styles.yearDisplayText}>Year {selectedYear}</Text>
                 </View>
+
                 <TouchableOpacity
-                  style={styles.yearBtn}
+                  style={styles.yearArrowBtn}
                   onPress={() => setSelectedYear((y) => y + 1)}
-                  activeOpacity={0.7}
                 >
-                  <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* Financial Statement Overview Card */}
-            <View style={styles.statementCard}>
-              <Text style={styles.statementTitle}>
+            {/* Financial Overview Card */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>
                 {reportMode === 'monthly'
-                  ? `Monthly Statement (${formatYearMonth(selectedYM)})`
-                  : `Annual Statement (${selectedYear})`}
+                  ? `Financial Health • ${formatYearMonth(selectedYM)}`
+                  : `Annual Financial Health • ${selectedYear}`}
               </Text>
+              <Text style={styles.summaryAmount}>
+                {netSavings >= 0 ? '+' : ''}
+                {formatAmount(netSavings)}
+              </Text>
+              <Text style={styles.summarySub}>Net Balance Retained</Text>
 
-              <View style={styles.statementGrid}>
-                {/* Income */}
-                <View style={styles.statementGridItem}>
-                  <Text style={styles.statementItemLabel}>Total Income</Text>
-                  <Text style={[styles.statementItemValue, { color: theme.colors.successLight }]}>
+              {/* 3 Metric Inset Badges */}
+              <View style={styles.metricRow}>
+                <View style={styles.metricBox}>
+                  <Text style={styles.metricLabel}>Income</Text>
+                  <Text style={[styles.metricVal, { color: theme.colors.success }]}>
                     +{formatAmount(totalIncome)}
                   </Text>
                 </View>
-
-                {/* Expense */}
-                <View style={styles.statementGridItem}>
-                  <Text style={styles.statementItemLabel}>Total Expenses</Text>
-                  <Text style={[styles.statementItemValue, { color: theme.colors.dangerLight }]}>
+                <View style={styles.metricDivider} />
+                <View style={styles.metricBox}>
+                  <Text style={styles.metricLabel}>Expenses</Text>
+                  <Text style={[styles.metricVal, { color: theme.colors.danger }]}>
                     -{formatAmount(totalExpense)}
                   </Text>
                 </View>
-              </View>
-
-              {/* Net Savings Highlight */}
-              <View style={styles.netSavingsBox}>
-                <View>
-                  <Text style={styles.netSavingsLabel}>Net Savings</Text>
-                  <Text
-                    style={[
-                      styles.netSavingsValue,
-                      {
-                        color:
-                          netSavings >= 0 ? theme.colors.successLight : theme.colors.dangerLight,
-                      },
-                    ]}
-                  >
-                    {formatAmount(netSavings)}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.savingsRateBadge,
-                    {
-                      backgroundColor:
-                        netSavings >= 0 ? theme.colors.successGlow : theme.colors.dangerGlow,
-                      borderColor:
-                        netSavings >= 0 ? theme.colors.successDark : theme.colors.dangerDark,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.savingsRateBadgeText,
-                      {
-                        color:
-                          netSavings >= 0 ? theme.colors.successLight : theme.colors.dangerLight,
-                      },
-                    ]}
-                  >
-                    {savingsRate}% Savings Rate
+                <View style={styles.metricDivider} />
+                <View style={styles.metricBox}>
+                  <Text style={styles.metricLabel}>Savings Rate</Text>
+                  <Text style={[styles.metricVal, { color: theme.colors.primary }]}>
+                    {savingsRate}%
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Charts Component for Report Mode */}
+            {/* Reports Charts & Trends */}
             <ReportCharts
               reportMode={reportMode}
               selectedYM={selectedYM}
@@ -540,445 +515,398 @@ Exported from Money Manager App`;
             />
           </>
         )}
-
-        <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Month Calendar Picker Modal */}
-      <CalendarMonthPickerModal
-        visible={pickerModalVisible}
-        currentYearMonth={selectedYM}
-        onSelect={setSelectedYM}
-        onClose={() => setPickerModalVisible(false)}
-      />
-
       {/* Category Drilldown Modal */}
-      <CategoryTransactionsModal
-        visible={!!selectedCategory}
-        onClose={() => setSelectedCategory(null)}
-        category={selectedCategory}
-        periodLabel={reportMode === 'monthly' ? formatYearMonth(selectedYM) : `Annual ${selectedYear}`}
-        transactions={transactions}
-        accounts={accounts}
-        onEditTransaction={handleEditTx}
-        onDeleteTransaction={deleteTransaction}
-      />
+      {selectedCategory && (
+        <CategoryTransactionsModal
+          visible={!!selectedCategory}
+          categoryData={selectedCategory}
+          allTransactions={transactions}
+          selectedYearMonth={selectedYM}
+          accounts={accounts}
+          onClose={() => setSelectedCategory(null)}
+          onEditTransaction={handleEditTx}
+          onDeleteTransaction={deleteTransaction}
+        />
+      )}
 
       {/* Edit Transaction Modal */}
       <AddTransactionModal
         visible={editModalVisible}
-        onClose={() => {
-          setEditModalVisible(false);
-          setEditingTx(null);
-        }}
+        onClose={() => setEditModalVisible(false)}
+        transactionToEdit={editingTx || undefined}
         initialType={editingTx?.type || 'expense'}
-        editingTransaction={editingTx}
+      />
+
+      {/* Calendar Month Picker Modal */}
+      <CalendarMonthPickerModal
+        visible={pickerModalVisible}
+        selectedYearMonth={selectedYM}
+        onSelectYearMonth={setSelectedYM}
+        onClose={() => setPickerModalVisible(false)}
       />
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 10,
-    backgroundColor: theme.colors.background,
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: theme.colors.text,
-    letterSpacing: -0.5,
-  },
-  shareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: theme.radii.sm,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  shareBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  viewModeContainer: {
-    paddingHorizontal: 18,
-    paddingBottom: 12,
-  },
-  viewModePillGroup: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surfaceCard,
-    padding: 4,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  viewModeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: theme.radii.sm,
-  },
-  viewModeBtnActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  viewModeBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  viewModeBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 4,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  toggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: theme.radii.sm,
-    gap: 6,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  toggleBtnActiveExpense: {
-    backgroundColor: 'rgba(244, 63, 94, 0.2)',
-    borderColor: theme.colors.danger,
-  },
-  toggleBtnActiveIncome: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderColor: theme.colors.success,
-  },
-  toggleBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  toggleBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  summaryCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.lg,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  summaryTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  summaryAmount: {
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  entriesBadge: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  entriesBadgeText: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '700',
-  },
-  topCategoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  topCategoryText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  hintText: {
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    fontStyle: 'italic',
-  },
-  categoryCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.md,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  categoryTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  catIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  catName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  catPercent: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  categoryRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  catAmount: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  progressBarTrack: {
-    height: 5,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  reportPeriodRow: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surfaceCard,
-    padding: 4,
-    borderRadius: theme.radii.md,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  periodBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 9,
-    borderRadius: theme.radii.sm,
-  },
-  periodBtnActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  periodBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  periodBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  yearNavigator: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    padding: 6,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  yearBtn: {
-    padding: 8,
-    borderRadius: theme.radii.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  yearBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  yearText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  statementCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.lg,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  statementTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.colors.text,
-    marginBottom: 14,
-  },
-  statementGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 14,
-  },
-  statementGridItem: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    padding: 12,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  statementItemLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  statementItemValue: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  netSavingsBox: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    padding: 12,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  netSavingsLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  netSavingsValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  savingsRateBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: theme.radii.xs,
-    borderWidth: 1,
-  },
-  savingsRateBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  emptyCard: {
-    alignItems: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    headerTitle: {
+      fontSize: 34,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.6,
+    },
+    shareBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderRadius: theme.radii.full,
+    },
+    shareBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    // Apple iOS Segmented Control
+    segmentedContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+    },
+    segmentedControl: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      padding: 3,
+      borderRadius: theme.radii.sm,
+    },
+    segmentBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 7,
+      borderRadius: theme.radii.xs,
+    },
+    segmentBtnActive: {
+      backgroundColor: isDark ? '#636366' : '#FFFFFF',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.12,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: isDark ? '#FFFFFF' : '#1C1C1E',
+      fontWeight: '700',
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 36,
+    },
+    // Type Filter Pills
+    typeFilterRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginVertical: 12,
+    },
+    typeFilterBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: theme.radii.md,
+      backgroundColor: theme.colors.surfaceCard,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    typeFilterBtnExpense: {
+      borderColor: theme.colors.danger,
+      backgroundColor: isDark ? 'rgba(255, 69, 58, 0.15)' : 'rgba(255, 59, 48, 0.1)',
+    },
+    typeFilterBtnIncome: {
+      borderColor: theme.colors.success,
+      backgroundColor: isDark ? 'rgba(48, 209, 88, 0.15)' : 'rgba(52, 199, 89, 0.1)',
+    },
+    typeFilterBtnSelected: {
+      borderColor: theme.colors.primary,
+      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)',
+    },
+    typeFilterText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    typeFilterTextExpense: {
+      color: theme.colors.danger,
+      fontWeight: '700',
+    },
+    typeFilterTextIncome: {
+      color: theme.colors.success,
+      fontWeight: '700',
+    },
+    typeFilterTextSelected: {
+      color: theme.colors.primary,
+      fontWeight: '700',
+    },
+    // Summary Card
+    summaryCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.lg,
+      padding: 18,
+      marginBottom: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    summaryTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    summaryLabel: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+    },
+    summaryAmount: {
+      fontSize: 32,
+      fontWeight: '700',
+      letterSpacing: -0.6,
+    },
+    summarySub: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    entriesBadge: {
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: theme.radii.sm,
+    },
+    entriesBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    topCategoryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+    },
+    topCategoryText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    // Metric Row
+    metricRow: {
+      flexDirection: 'row',
+      marginTop: 16,
+      paddingTop: 14,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+    },
+    metricBox: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    metricLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+      marginBottom: 2,
+    },
+    metricVal: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    metricDivider: {
+      width: StyleSheet.hairlineWidth,
+      height: 28,
+      backgroundColor: theme.colors.border,
+    },
+    // Year Picker
+    yearPickerRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 16,
+      marginBottom: 14,
+    },
+    yearArrowBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surfaceCard,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    yearDisplayBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: theme.colors.surfaceCard,
+      paddingVertical: 8,
+      paddingHorizontal: 18,
+      borderRadius: theme.radii.full,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    yearDisplayText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    // Section Headers
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 20,
+      marginBottom: 8,
+      paddingHorizontal: 4,
+    },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    sectionHint: {
+      fontSize: 11,
+      color: theme.colors.primary,
+      fontWeight: '500',
+    },
+    groupedCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+      ...theme.shadows.card,
+    },
+    separator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      marginLeft: 58,
+    },
+    categoryItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+    },
+    catIconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    catInfo: {
+      flex: 1,
+    },
+    catTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    catName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+      flex: 1,
+      marginRight: 8,
+    },
+    catAmount: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    progressBarWrap: {
+      height: 5,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      borderRadius: 3,
+      overflow: 'hidden',
+      marginBottom: 4,
+    },
+    progressBarFill: {
+      height: '100%',
+      borderRadius: 3,
+    },
+    catMetaRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    catPercent: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    emptyCard: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 36,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    emptyTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginTop: 10,
+      marginBottom: 4,
+    },
+    emptySubtitle: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+  });

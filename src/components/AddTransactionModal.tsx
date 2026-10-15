@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
+import { useTheme } from '../context/ThemeContext';
 import { Account, Transaction, TransactionType } from '../types';
 import { FullDatePickerModal } from './FullDatePickerModal';
 import { getTodayDateString, formatDateWithWeekday } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 const PRESET_ICONS = [
   'cart-outline',
@@ -39,17 +40,16 @@ const PRESET_ICONS = [
 ];
 
 const PRESET_COLORS = [
-  '#EF4444',
-  '#F97316',
-  '#F59E0B',
-  '#10B981',
-  '#06B6D4',
-  '#3B82F6',
-  '#6366F1',
-  '#8B5CF6',
-  '#EC4899',
-  '#14B8A6',
-  '#64748B',
+  '#FF3B30',
+  '#FF9500',
+  '#FFCC00',
+  '#34C759',
+  '#00C7BE',
+  '#007AFF',
+  '#5856D6',
+  '#AF52DE',
+  '#FF2D55',
+  '#8E8E93',
 ];
 
 interface Props {
@@ -57,6 +57,8 @@ interface Props {
   onClose: () => void;
   initialType?: TransactionType;
   editingTransaction?: Transaction | null;
+  transactionToEdit?: Transaction | null;
+  defaultDate?: string;
 }
 
 export const AddTransactionModal: React.FC<Props> = ({
@@ -64,7 +66,12 @@ export const AddTransactionModal: React.FC<Props> = ({
   onClose,
   initialType = 'expense',
   editingTransaction = null,
+  transactionToEdit = null,
+  defaultDate,
 }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const {
     accounts,
     categories,
@@ -75,10 +82,12 @@ export const AddTransactionModal: React.FC<Props> = ({
     activeCurrency,
   } = useBudget();
 
+  const activeTx = editingTransaction || transactionToEdit || null;
+
   const [type, setType] = useState<TransactionType>(initialType);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(getTodayDateString());
+  const [date, setDate] = useState(defaultDate || getTodayDateString());
 
   // Single Account for Income & Expense
   const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
@@ -92,7 +101,7 @@ export const AddTransactionModal: React.FC<Props> = ({
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('pricetag-outline');
-  const [newCatColor, setNewCatColor] = useState('#3B82F6');
+  const [newCatColor, setNewCatColor] = useState('#007AFF');
 
   // Quick Add Account Modal state
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -103,57 +112,57 @@ export const AddTransactionModal: React.FC<Props> = ({
   // Full Calendar Date Picker Modal state
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
-  // Track previous visibility and editing transaction to prevent wiping typed inputs
-  const prevVisibleRef = React.useRef(false);
-  const prevEditingIdRef = React.useRef<string | null>(null);
+  // Track previous visibility to prevent wiping typed inputs
+  const prevVisibleRef = useRef(false);
+  const prevEditingIdRef = useRef<string | null>(null);
 
-  // Populate fields ONLY when modal freshly opens (false -> true) or editingTransaction changes
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const justOpened = !prevVisibleRef.current && visible;
-    const editingChanged = (editingTransaction?.id || null) !== prevEditingIdRef.current;
+    const editingChanged = (activeTx?.id || null) !== prevEditingIdRef.current;
 
     prevVisibleRef.current = visible;
-    prevEditingIdRef.current = editingTransaction?.id || null;
+    prevEditingIdRef.current = activeTx?.id || null;
 
     if (!visible) return;
 
     if (justOpened || editingChanged) {
-      if (editingTransaction) {
-        setType(editingTransaction.type);
-        const displayedAmount = (editingTransaction.amount * (activeCurrency.rate || 1.0)).toFixed(2);
+      if (activeTx) {
+        setType(activeTx.type);
+        const displayedAmount = (activeTx.amount * (activeCurrency.rate || 1.0)).toFixed(2);
         setAmount(displayedAmount);
-        setNote(editingTransaction.note || '');
-        setDate(editingTransaction.date);
-        if (editingTransaction.type === 'transfer') {
-          setFromAccountId(editingTransaction.fromAccountId || accounts[0]?.id || '');
-          setToAccountId(editingTransaction.toAccountId || accounts[1]?.id || '');
+        setNote(activeTx.note || '');
+        setDate(activeTx.date);
+        if (activeTx.type === 'transfer') {
+          setFromAccountId(activeTx.fromAccountId || accounts[0]?.id || '');
+          setToAccountId(activeTx.toAccountId || accounts[1]?.id || '');
         } else {
-          setSelectedAccountId(editingTransaction.accountId || accounts[0]?.id || '');
-          setSelectedCategoryId(editingTransaction.categoryId || '');
+          setSelectedAccountId(activeTx.accountId || accounts[0]?.id || '');
+          setSelectedCategoryId(activeTx.categoryId || '');
         }
       } else {
         setType(initialType);
         setAmount('');
         setNote('');
-        setDate(getTodayDateString());
+        setDate(defaultDate || getTodayDateString());
         setSelectedAccountId(accounts[0]?.id || '');
         setSelectedCategoryId('');
         setFromAccountId(accounts[0]?.id || '');
         setToAccountId(accounts[1]?.id || '');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, editingTransaction, initialType]);
+  }, [visible, activeTx, initialType, defaultDate, accounts, activeCurrency.rate]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const filteredCategories = categories.filter((c) => c.type === (type === 'transfer' ? 'expense' : type));
+  const filteredCategories = categories.filter(
+    (c) => c.type === (type === 'transfer' ? 'expense' : type)
+  );
 
   // Category Quick Add handlers
   const handleOpenAddCategory = () => {
     setNewCatName('');
     setNewCatIcon(type === 'expense' ? 'cart-outline' : 'wallet-outline');
-    setNewCatColor(type === 'expense' ? '#EF4444' : '#10B981');
+    setNewCatColor(type === 'expense' ? '#FF3B30' : '#34C759');
     setIsAddCategoryOpen(true);
   };
 
@@ -173,7 +182,6 @@ export const AddTransactionModal: React.FC<Props> = ({
       color: newCatColor,
     });
 
-    // Auto-select the newly created category immediately!
     setSelectedCategoryId(createdCat.id);
     setIsAddCategoryOpen(false);
   };
@@ -195,20 +203,20 @@ export const AddTransactionModal: React.FC<Props> = ({
     const startingBal = parseFloat(newAccBalance) || 0;
 
     let icon = 'business-outline';
-    let color = '#3B82F6';
+    let color = '#007AFF';
 
     if (newAccType === 'cash') {
       icon = 'cash-outline';
-      color = '#10B981';
+      color = '#34C759';
     } else if (newAccType === 'savings') {
       icon = 'shield-checkmark-outline';
-      color = '#8B5CF6';
+      color = '#AF52DE';
     } else if (newAccType === 'credit') {
       icon = 'card-outline';
-      color = '#EC4899';
+      color = '#FF3B30';
     } else if (newAccType === 'investment') {
       icon = 'trending-up-outline';
-      color = '#F59E0B';
+      color = '#FF9500';
     }
 
     const createdAcc = await addAccount({
@@ -219,7 +227,6 @@ export const AddTransactionModal: React.FC<Props> = ({
       color,
     });
 
-    // Auto-select the newly created account immediately!
     if (type === 'transfer') {
       if (!toAccountId || toAccountId === fromAccountId) {
         setToAccountId(createdAcc.id);
@@ -259,8 +266,8 @@ export const AddTransactionModal: React.FC<Props> = ({
         toAccountId,
       };
 
-      if (editingTransaction) {
-        await updateTransaction(editingTransaction.id, txPayload);
+      if (activeTx) {
+        await updateTransaction(activeTx.id, txPayload);
       } else {
         await addTransaction(txPayload);
       }
@@ -283,8 +290,8 @@ export const AddTransactionModal: React.FC<Props> = ({
         categoryId: selectedCategoryId,
       };
 
-      if (editingTransaction) {
-        await updateTransaction(editingTransaction.id, txPayload);
+      if (activeTx) {
+        await updateTransaction(activeTx.id, txPayload);
       } else {
         await addTransaction(txPayload);
       }
@@ -316,7 +323,7 @@ export const AddTransactionModal: React.FC<Props> = ({
     >
       <KeyboardAvoidingView
         style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <TouchableOpacity
           style={styles.backdropDismiss}
@@ -324,17 +331,22 @@ export const AddTransactionModal: React.FC<Props> = ({
           onPress={onClose}
         />
         <View style={styles.modalContent}>
+          {/* Top Apple Handle Indicator */}
+          <View style={styles.handleContainer}>
+            <View style={styles.sheetHandle} />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>
-              {editingTransaction ? 'Edit Transaction' : 'Add Record'}
+              {activeTx ? 'Edit Transaction' : 'New Transaction'}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Type Segmented Buttons */}
+          {/* Apple iOS Native Segmented Tab */}
           <View style={styles.segmentContainer}>
             <TouchableOpacity
               style={[styles.segmentBtn, type === 'expense' && styles.segmentExpenseActive]}
@@ -345,8 +357,8 @@ export const AddTransactionModal: React.FC<Props> = ({
             >
               <Ionicons
                 name="arrow-down-circle"
-                size={18}
-                color={type === 'expense' ? '#FFF' : '#EF4444'}
+                size={16}
+                color={type === 'expense' ? '#FFFFFF' : theme.colors.danger}
               />
               <Text style={[styles.segmentText, type === 'expense' && styles.segmentTextActive]}>
                 Expense
@@ -362,8 +374,8 @@ export const AddTransactionModal: React.FC<Props> = ({
             >
               <Ionicons
                 name="arrow-up-circle"
-                size={18}
-                color={type === 'income' ? '#FFF' : '#10B981'}
+                size={16}
+                color={type === 'income' ? '#FFFFFF' : theme.colors.success}
               />
               <Text style={[styles.segmentText, type === 'income' && styles.segmentTextActive]}>
                 Income
@@ -376,8 +388,8 @@ export const AddTransactionModal: React.FC<Props> = ({
             >
               <Ionicons
                 name="swap-horizontal"
-                size={18}
-                color={type === 'transfer' ? '#FFF' : '#3B82F6'}
+                size={16}
+                color={type === 'transfer' ? '#FFFFFF' : theme.colors.primary}
               />
               <Text style={[styles.segmentText, type === 'transfer' && styles.segmentTextActive]}>
                 Transfer
@@ -390,9 +402,8 @@ export const AddTransactionModal: React.FC<Props> = ({
             style={styles.formScroll}
             contentContainerStyle={styles.formScrollContent}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
           >
-            {/* Amount Input */}
+            {/* Apple Style Numeric Amount Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Amount ({activeCurrency.symbol} {activeCurrency.code})
@@ -401,7 +412,7 @@ export const AddTransactionModal: React.FC<Props> = ({
                 style={styles.amountInput}
                 keyboardType="numeric"
                 placeholder="0.00"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={theme.colors.textTertiary}
                 value={amount}
                 onChangeText={setAmount}
               />
@@ -413,13 +424,13 @@ export const AddTransactionModal: React.FC<Props> = ({
               <TextInput
                 style={styles.textInput}
                 placeholder="What is this for?"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={theme.colors.textTertiary}
                 value={note}
                 onChangeText={setNote}
               />
             </View>
 
-            {/* Date Input with Interactive Calendar Picker */}
+            {/* Date Input with Apple Calendar Sheet Trigger */}
             <View style={styles.inputGroup}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.label}>Date</Text>
@@ -427,7 +438,7 @@ export const AddTransactionModal: React.FC<Props> = ({
                   style={styles.addQuickLink}
                   onPress={() => setDate(getTodayDateString())}
                 >
-                  <Ionicons name="today-outline" size={15} color="#3B82F6" />
+                  <Ionicons name="today-outline" size={14} color={theme.colors.primary} />
                   <Text style={styles.addQuickLinkText}>Today</Text>
                 </TouchableOpacity>
               </View>
@@ -439,14 +450,14 @@ export const AddTransactionModal: React.FC<Props> = ({
               >
                 <View style={styles.datePickerLeft}>
                   <View style={styles.calendarIconCircle}>
-                    <Ionicons name="calendar" size={18} color="#2563EB" />
+                    <Ionicons name="calendar" size={18} color={theme.colors.primary} />
                   </View>
                   <View>
                     <Text style={styles.datePickerSelectedText}>{formatDateWithWeekday(date)}</Text>
-                    <Text style={styles.datePickerSubText}>{date} • Tap to change date</Text>
+                    <Text style={styles.datePickerSubText}>{date} • Tap to pick date</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.textTertiary} />
               </TouchableOpacity>
             </View>
 
@@ -460,8 +471,8 @@ export const AddTransactionModal: React.FC<Props> = ({
                       style={styles.addQuickLink}
                       onPress={handleOpenAddAccount}
                     >
-                      <Ionicons name="add-circle-outline" size={16} color="#3B82F6" />
-                      <Text style={styles.addQuickLinkText}>Add Account</Text>
+                      <Ionicons name="add-circle-outline" size={15} color={theme.colors.primary} />
+                      <Text style={styles.addQuickLinkText}>+ Add Account</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -473,11 +484,12 @@ export const AddTransactionModal: React.FC<Props> = ({
                           key={acc.id}
                           style={[styles.chip, isSelected && styles.chipSelected]}
                           onPress={() => setSelectedAccountId(acc.id)}
+                          activeOpacity={0.7}
                         >
                           <Ionicons
                             name={(acc.icon as any) || 'card-outline'}
-                            size={16}
-                            color={isSelected ? '#FFF' : acc.color}
+                            size={15}
+                            color={isSelected ? '#FFFFFF' : acc.color || theme.colors.primary}
                           />
                           <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                             {acc.name}
@@ -485,19 +497,10 @@ export const AddTransactionModal: React.FC<Props> = ({
                         </TouchableOpacity>
                       );
                     })}
-
-                    {/* Dedicated "+ New Account" pill in horizontal scroll */}
-                    <TouchableOpacity
-                      style={styles.addChipBtn}
-                      onPress={handleOpenAddAccount}
-                    >
-                      <Ionicons name="add" size={16} color="#2563EB" />
-                      <Text style={styles.addChipBtnText}>New Account</Text>
-                    </TouchableOpacity>
                   </ScrollView>
                 </View>
 
-                {/* Categories */}
+                {/* Categories Grid */}
                 <View style={styles.inputGroup}>
                   <View style={styles.sectionHeaderRow}>
                     <Text style={styles.label}>Category</Text>
@@ -505,8 +508,8 @@ export const AddTransactionModal: React.FC<Props> = ({
                       style={styles.addQuickLink}
                       onPress={handleOpenAddCategory}
                     >
-                      <Ionicons name="add-circle-outline" size={16} color="#3B82F6" />
-                      <Text style={styles.addQuickLinkText}>Add Category</Text>
+                      <Ionicons name="add-circle-outline" size={15} color={theme.colors.primary} />
+                      <Text style={styles.addQuickLinkText}>+ Add Category</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -518,12 +521,16 @@ export const AddTransactionModal: React.FC<Props> = ({
                           key={cat.id}
                           style={[
                             styles.catItem,
-                            isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
+                            isSelected && {
+                              borderColor: cat.color,
+                              backgroundColor: isDark ? `${cat.color}25` : `${cat.color}15`,
+                            },
                           ]}
                           onPress={() => setSelectedCategoryId(cat.id)}
+                          activeOpacity={0.7}
                         >
                           <View style={[styles.catIconCircle, { backgroundColor: cat.color }]}>
-                            <Ionicons name={(cat.icon as any) || 'pricetag'} size={18} color="#FFF" />
+                            <Ionicons name={(cat.icon as any) || 'pricetag'} size={18} color="#FFFFFF" />
                           </View>
                           <Text
                             style={[
@@ -542,9 +549,10 @@ export const AddTransactionModal: React.FC<Props> = ({
                     <TouchableOpacity
                       style={styles.addCatTile}
                       onPress={handleOpenAddCategory}
+                      activeOpacity={0.7}
                     >
                       <View style={styles.addCatIconBox}>
-                        <Ionicons name="add" size={20} color="#3B82F6" />
+                        <Ionicons name="add" size={18} color={theme.colors.primary} />
                       </View>
                       <Text style={styles.addCatTileText}>+ New</Text>
                     </TouchableOpacity>
@@ -557,13 +565,6 @@ export const AddTransactionModal: React.FC<Props> = ({
                 <View style={styles.inputGroup}>
                   <View style={styles.sectionHeaderRow}>
                     <Text style={styles.label}>From Account (Withdrawal)</Text>
-                    <TouchableOpacity
-                      style={styles.addQuickLink}
-                      onPress={handleOpenAddAccount}
-                    >
-                      <Ionicons name="add-circle-outline" size={16} color="#3B82F6" />
-                      <Text style={styles.addQuickLinkText}>Add Account</Text>
-                    </TouchableOpacity>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
                     {accounts.map((acc) => {
@@ -573,6 +574,7 @@ export const AddTransactionModal: React.FC<Props> = ({
                           key={acc.id}
                           style={[styles.chip, isSelected && styles.chipSelectedRed]}
                           onPress={() => setFromAccountId(acc.id)}
+                          activeOpacity={0.7}
                         >
                           <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                             {acc.name}
@@ -580,18 +582,11 @@ export const AddTransactionModal: React.FC<Props> = ({
                         </TouchableOpacity>
                       );
                     })}
-                    <TouchableOpacity
-                      style={styles.addChipBtn}
-                      onPress={handleOpenAddAccount}
-                    >
-                      <Ionicons name="add" size={16} color="#2563EB" />
-                      <Text style={styles.addChipBtnText}>New Account</Text>
-                    </TouchableOpacity>
                   </ScrollView>
                 </View>
 
                 <View style={styles.transferDivider}>
-                  <Ionicons name="arrow-down" size={20} color="#3B82F6" />
+                  <Ionicons name="arrow-down" size={18} color={theme.colors.primary} />
                 </View>
 
                 <View style={styles.inputGroup}>
@@ -604,6 +599,7 @@ export const AddTransactionModal: React.FC<Props> = ({
                           key={acc.id}
                           style={[styles.chip, isSelected && styles.chipSelectedGreen]}
                           onPress={() => setToAccountId(acc.id)}
+                          activeOpacity={0.7}
                         >
                           <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                             {acc.name}
@@ -611,24 +607,17 @@ export const AddTransactionModal: React.FC<Props> = ({
                         </TouchableOpacity>
                       );
                     })}
-                    <TouchableOpacity
-                      style={styles.addChipBtn}
-                      onPress={handleOpenAddAccount}
-                    >
-                      <Ionicons name="add" size={16} color="#2563EB" />
-                      <Text style={styles.addChipBtnText}>New Account</Text>
-                    </TouchableOpacity>
                   </ScrollView>
                 </View>
               </View>
             )}
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSave}>
+            {/* Apple Style Submit Button */}
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSave} activeOpacity={0.85}>
               <Text style={styles.submitBtnText}>
-                {editingTransaction ? 'Update Transaction' : 'Save Transaction'}
+                {activeTx ? 'Save Changes' : 'Save Transaction'}
               </Text>
             </TouchableOpacity>
-            <View style={{ height: 60 }} />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -637,23 +626,21 @@ export const AddTransactionModal: React.FC<Props> = ({
       {isAddCategoryOpen && (
         <KeyboardAvoidingView
           style={styles.quickCatOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.quickCatCard}>
             <View style={styles.quickCatHeader}>
-              <Text style={styles.quickCatTitle}>
-                Add {type === 'expense' ? 'Expense' : 'Income'} Category
-              </Text>
+              <Text style={styles.quickCatTitle}>Add New Category</Text>
               <TouchableOpacity onPress={() => setIsAddCategoryOpen(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.quickLabel}>Category Name</Text>
             <TextInput
               style={styles.quickInput}
-              placeholder="e.g. Freelance, Taxi, Coffee"
-              placeholderTextColor="#94A3B8"
+              placeholder="e.g. Health, Taxi, Coffee"
+              placeholderTextColor={theme.colors.textTertiary}
               value={newCatName}
               onChangeText={setNewCatName}
               autoFocus
@@ -661,19 +648,15 @@ export const AddTransactionModal: React.FC<Props> = ({
 
             <Text style={styles.quickLabel}>Color</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickColorRow}>
-              {PRESET_COLORS.map((col) => {
-                const isSelected = newCatColor === col;
+              {PRESET_COLORS.map((c) => {
+                const isSelected = newCatColor === c;
                 return (
                   <TouchableOpacity
-                    key={col}
-                    style={[
-                      styles.colorDot,
-                      { backgroundColor: col },
-                      isSelected && styles.colorDotSelected,
-                    ]}
-                    onPress={() => setNewCatColor(col)}
+                    key={c}
+                    style={[styles.colorDot, { backgroundColor: c }, isSelected && styles.colorDotSelected]}
+                    onPress={() => setNewCatColor(c)}
                   >
-                    {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                    {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </TouchableOpacity>
                 );
               })}
@@ -681,21 +664,21 @@ export const AddTransactionModal: React.FC<Props> = ({
 
             <Text style={styles.quickLabel}>Icon</Text>
             <View style={styles.quickIconGrid}>
-              {PRESET_ICONS.slice(0, 12).map((ico) => {
-                const isSelected = newCatIcon === ico;
+              {PRESET_ICONS.slice(0, 10).map((icon) => {
+                const isSelected = newCatIcon === icon;
                 return (
                   <TouchableOpacity
-                    key={ico}
+                    key={icon}
                     style={[
                       styles.quickIconBox,
-                      isSelected && { borderColor: newCatColor, backgroundColor: `${newCatColor}15` },
+                      isSelected && { borderColor: newCatColor, backgroundColor: `${newCatColor}20` },
                     ]}
-                    onPress={() => setNewCatIcon(ico)}
+                    onPress={() => setNewCatIcon(icon)}
                   >
                     <Ionicons
-                      name={ico as any}
+                      name={icon as any}
                       size={20}
-                      color={isSelected ? newCatColor : '#64748B'}
+                      color={isSelected ? newCatColor : theme.colors.textSecondary}
                     />
                   </TouchableOpacity>
                 );
@@ -725,21 +708,21 @@ export const AddTransactionModal: React.FC<Props> = ({
       {isAddAccountOpen && (
         <KeyboardAvoidingView
           style={styles.quickCatOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.quickCatCard}>
             <View style={styles.quickCatHeader}>
               <Text style={styles.quickCatTitle}>Add New Account</Text>
               <TouchableOpacity onPress={() => setIsAddAccountOpen(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.quickLabel}>Account Name</Text>
             <TextInput
               style={styles.quickInput}
-              placeholder="e.g. PayPal, Revolut, Pocket Cash"
-              placeholderTextColor="#94A3B8"
+              placeholder="e.g. PayPal, Revolut, Cash"
+              placeholderTextColor={theme.colors.textTertiary}
               value={newAccName}
               onChangeText={setNewAccName}
               autoFocus
@@ -752,7 +735,7 @@ export const AddTransactionModal: React.FC<Props> = ({
               style={styles.quickInput}
               placeholder="0.00"
               keyboardType="numeric"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.colors.textTertiary}
               value={newAccBalance}
               onChangeText={setNewAccBalance}
             />
@@ -810,447 +793,433 @@ export const AddTransactionModal: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderTopLeftRadius: theme.radii.xl,
-    borderTopRightRadius: theme.radii.xl,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    maxHeight: '92%',
-    borderTopWidth: 1,
-    borderColor: theme.colors.borderLight,
-  },
-  backdropDismiss: {
-    flex: 1,
-  },
-  formScrollContent: {
-    paddingBottom: 60,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: theme.colors.text,
-    letterSpacing: -0.3,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    padding: 4,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: theme.radii.sm,
-    gap: 6,
-  },
-  segmentExpenseActive: {
-    backgroundColor: theme.colors.danger,
-  },
-  segmentIncomeActive: {
-    backgroundColor: theme.colors.success,
-  },
-  segmentTransferActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  segmentTextActive: {
-    color: '#FFFFFF',
-  },
-  formScroll: {
-    maxHeight: 520,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  addQuickLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 2,
-  },
-  addQuickLinkText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  amountInput: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: theme.colors.text,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    letterSpacing: -0.5,
-  },
-  textInput: {
-    fontSize: 15,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    fontWeight: '500',
-  },
-  datePickerTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.md,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  datePickerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  calendarIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: theme.colors.primaryGlow,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  datePickerSelectedText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  datePickerSubText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: theme.radii.lg,
-    marginRight: 8,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  chipSelected: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryLight,
-  },
-  chipSelectedRed: {
-    backgroundColor: theme.colors.danger,
-    borderColor: theme.colors.dangerLight,
-  },
-  chipSelectedGreen: {
-    backgroundColor: theme.colors.success,
-    borderColor: theme.colors.successLight,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  chipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  addChipBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primaryGlow,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: theme.radii.lg,
-    marginRight: 8,
-    gap: 4,
-  },
-  addChipBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  catItem: {
-    width: '31%',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: theme.radii.md,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  catIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  catName: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  addCatTile: {
-    width: '31%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: theme.radii.md,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-    backgroundColor: theme.colors.primaryGlow,
-  },
-  addCatIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: 'rgba(59, 130, 246, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  addCatTileText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  transferSection: {
-    backgroundColor: theme.colors.surface,
-    padding: 12,
-    borderRadius: theme.radii.md,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  transferDivider: {
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  submitBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 16,
-    borderRadius: theme.radii.md,
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  // Quick Add Modal styles
-  quickCatOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    zIndex: 99999,
-    elevation: 30,
-  },
-  quickCatCard: {
-    width: '100%',
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radii.lg,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  quickCatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  quickCatTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  quickLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-    marginBottom: 6,
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  quickInput: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: theme.colors.text,
-    fontWeight: '600',
-  },
-  quickColorRow: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  colorDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  colorDotSelected: {
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  quickIconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  quickIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountTypeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  accountTypePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: theme.radii.sm,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  accountTypePillSelected: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryLight,
-  },
-  accountTypePillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    textTransform: 'capitalize',
-  },
-  accountTypePillTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 8,
-  },
-  quickCancelBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  quickCancelText: {
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  quickSaveBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: theme.radii.sm,
-  },
-  quickSaveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderTopLeftRadius: theme.radii.xl,
+      borderTopRightRadius: theme.radii.xl,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      maxHeight: '92%',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    backdropDismiss: {
+      flex: 1,
+    },
+    handleContainer: {
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? '#3A3A3C' : '#D1D1D6',
+    },
+    formScroll: {
+      maxHeight: 520,
+    },
+    formScrollContent: {
+      paddingBottom: 40,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.3,
+    },
+    closeBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Segmented Control
+    segmentContainer: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      borderRadius: theme.radii.md,
+      padding: 3,
+      marginBottom: 16,
+    },
+    segmentBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      borderRadius: theme.radii.sm,
+      gap: 6,
+    },
+    segmentExpenseActive: {
+      backgroundColor: theme.colors.danger,
+    },
+    segmentIncomeActive: {
+      backgroundColor: theme.colors.success,
+    },
+    segmentTransferActive: {
+      backgroundColor: theme.colors.primary,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    inputGroup: {
+      marginBottom: 16,
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    addQuickLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    addQuickLinkText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.primary,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    amountInput: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: theme.colors.text,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.lg,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      letterSpacing: -0.5,
+    },
+    textInput: {
+      fontSize: 15,
+      color: theme.colors.text,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      fontWeight: '500',
+    },
+    datePickerTrigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    datePickerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    calendarIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    datePickerSelectedText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    datePickerSubText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    chipsRow: {
+      flexDirection: 'row',
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: theme.radii.full,
+      marginRight: 8,
+      gap: 6,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    chipSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    chipSelectedRed: {
+      backgroundColor: theme.colors.danger,
+      borderColor: theme.colors.danger,
+    },
+    chipSelectedGreen: {
+      backgroundColor: theme.colors.success,
+      borderColor: theme.colors.success,
+    },
+    chipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    chipTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    categoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    catItem: {
+      width: '31%',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+      borderRadius: theme.radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+    },
+    catIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
+    },
+    catName: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      fontWeight: '600',
+    },
+    addCatTile: {
+      width: '31%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+      borderRadius: theme.radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.primary,
+      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.1)' : 'rgba(0, 122, 255, 0.08)',
+    },
+    addCatIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
+    },
+    addCatTileText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.primary,
+    },
+    transferSection: {
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      padding: 14,
+      borderRadius: theme.radii.lg,
+      marginBottom: 16,
+    },
+    transferDivider: {
+      alignItems: 'center',
+      marginVertical: 4,
+    },
+    submitBtn: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 15,
+      borderRadius: theme.radii.lg,
+      alignItems: 'center',
+      marginTop: 8,
+      ...theme.shadows.glowPrimary,
+    },
+    submitBtnText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    // Quick Add Modal styles
+    quickCatOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+      zIndex: 99999,
+      elevation: 30,
+    },
+    quickCatCard: {
+      width: '100%',
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.xl,
+      padding: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    quickCatHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    quickCatTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    quickLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+      marginTop: 8,
+      textTransform: 'uppercase',
+    },
+    quickInput: {
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radii.md,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: theme.colors.text,
+      fontWeight: '500',
+    },
+    quickColorRow: {
+      flexDirection: 'row',
+      marginBottom: 10,
+    },
+    colorDot: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8,
+    },
+    colorDotSelected: {
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    },
+    quickIconGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 20,
+    },
+    quickIconBox: {
+      width: 42,
+      height: 42,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountTypeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 20,
+    },
+    accountTypePill: {
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: theme.radii.full,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    accountTypePillSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    accountTypePillText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'capitalize',
+    },
+    accountTypePillTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    quickActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 12,
+      marginTop: 8,
+    },
+    quickCancelBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: theme.radii.md,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+    },
+    quickCancelText: {
+      color: theme.colors.text,
+      fontWeight: '600',
+    },
+    quickSaveBtn: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+      borderRadius: theme.radii.md,
+    },
+    quickSaveText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+  });

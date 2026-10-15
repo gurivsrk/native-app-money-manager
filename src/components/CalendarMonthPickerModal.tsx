@@ -1,44 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs, { MONTH_NAMES_FULL } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { Theme } from '../constants/theme';
 
 interface Props {
   visible: boolean;
-  currentYearMonth: string; // 'YYYY-MM'
-  onSelect: (ym: string) => void;
+  currentYearMonth?: string;
+  selectedYearMonth?: string;
+  onSelect?: (ym: string) => void;
+  onSelectYearMonth?: (ym: string) => void;
   onClose: () => void;
 }
 
 export const CalendarMonthPickerModal: React.FC<Props> = ({
   visible,
   currentYearMonth,
+  selectedYearMonth,
   onSelect,
+  onSelectYearMonth,
   onClose,
 }) => {
-  const currentYmDate = dayjs(`${currentYearMonth}-01`);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  const activeYM = selectedYearMonth || currentYearMonth || dayjs().format('YYYY-MM');
+  const currentYmDate = dayjs(`${activeYM}-01`);
 
   const [currentYear, setCurrentYear] = useState(() => {
     return currentYmDate.isValid() ? currentYmDate.year() : dayjs().year();
   });
 
-  const prevVisibleRef = React.useRef(false);
+  const prevVisibleRef = useRef(false);
 
   useEffect(() => {
     if (!prevVisibleRef.current && visible) {
-      const parsed = dayjs(`${currentYearMonth}-01`);
+      const parsed = dayjs(`${activeYM}-01`);
       setCurrentYear(parsed.isValid() ? parsed.year() : dayjs().year());
     }
     prevVisibleRef.current = visible;
-  }, [visible, currentYearMonth]);
+  }, [visible, activeYM]);
 
   const selectedMonth = currentYmDate.isValid() ? currentYmDate.month() + 1 : 1;
   const selectedYear = currentYmDate.isValid() ? currentYmDate.year() : dayjs().year();
 
   const handleSelectMonth = (monthIndex: number) => {
     const mm = String(monthIndex + 1).padStart(2, '0');
-    onSelect(`${currentYear}-${mm}`);
+    const newYM = `${currentYear}-${mm}`;
+    if (onSelect) onSelect(newYM);
+    if (onSelectYearMonth) onSelectYearMonth(newYM);
     onClose();
   };
 
@@ -50,18 +61,18 @@ export const CalendarMonthPickerModal: React.FC<Props> = ({
           <View style={styles.header}>
             <Text style={styles.title}>Select Month & Year</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={20} color="#64748B" />
+              <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Year Navigator */}
+          {/* Year Navigator (Apple Style) */}
           <View style={styles.yearRow}>
             <TouchableOpacity
               style={styles.yearNavBtn}
               onPress={() => setCurrentYear((y) => y - 1)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
+              <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.yearText}>{currentYear}</Text>
             <TouchableOpacity
@@ -69,7 +80,7 @@ export const CalendarMonthPickerModal: React.FC<Props> = ({
               onPress={() => setCurrentYear((y) => y + 1)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -109,93 +120,100 @@ export const CalendarMonthPickerModal: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radii.lg,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  yearRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.sm,
-    paddingVertical: 8,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  yearNavBtn: {
-    padding: 6,
-  },
-  yearText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  monthsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  monthItem: {
-    width: '23%',
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderRadius: theme.radii.sm,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  monthItemSelected: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryLight,
-  },
-  monthItemNow: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryGlow,
-  },
-  monthText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  monthTextSelected: {
-    color: '#FFFFFF',
-  },
-  monthTextNow: {
-    color: theme.colors.primaryLight,
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.xl,
+      padding: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    title: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+    },
+    closeBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    yearRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      marginBottom: 16,
+    },
+    yearNavBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    yearText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    monthsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      justifyContent: 'space-between',
+    },
+    monthItem: {
+      width: '30%',
+      paddingVertical: 12,
+      borderRadius: theme.radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+    },
+    monthItemSelected: {
+      backgroundColor: theme.colors.primary,
+    },
+    monthItemNow: {
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
+    },
+    monthText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    monthTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    monthTextNow: {
+      color: theme.colors.primary,
+      fontWeight: '700',
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction, Account } from '../types';
 import { useBudget } from '../context/BudgetContext';
-import { formatDateWithWeekday } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { formatDateWithWeekday, formatYearMonth } from '../utils/dateUtils';
+import { Theme } from '../constants/theme';
 
 export interface CategoryModalData {
   id: string;
@@ -27,9 +28,12 @@ export interface CategoryModalData {
 interface Props {
   visible: boolean;
   onClose: () => void;
-  category: CategoryModalData | null;
-  periodLabel: string;
-  transactions: Transaction[];
+  category?: CategoryModalData | null;
+  categoryData?: CategoryModalData | null;
+  periodLabel?: string;
+  selectedYearMonth?: string;
+  transactions?: Transaction[];
+  allTransactions?: Transaction[];
   accounts: Account[];
   onEditTransaction?: (tx: Transaction) => void;
   onDeleteTransaction?: (id: string) => void;
@@ -41,19 +45,37 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
   visible,
   onClose,
   category,
+  categoryData,
   periodLabel,
+  selectedYearMonth,
   transactions,
+  allTransactions,
   accounts,
   onEditTransaction,
   onDeleteTransaction,
 }) => {
   const { formatAmount } = useBudget();
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-  if (!category) return null;
+  const activeCategory = category || categoryData || null;
+  if (!activeCategory) return null;
 
-  // Filter transactions specifically for this category
-  const categoryTxs = transactions.filter((t) => t.categoryId === category.id);
+  const txList = transactions || allTransactions || [];
+  const ym = selectedYearMonth || '';
+  const displayPeriod = periodLabel || (ym ? formatYearMonth(ym) : 'All Time');
+
+  // Filter transactions specifically for this category and (if specified) month
+  const categoryTxs = txList.filter((t) => {
+    const matchesCat = t.categoryId === activeCategory.id;
+    if (!matchesCat) return false;
+    if (ym) {
+      return t.date.startsWith(ym);
+    }
+    return true;
+  });
 
   // Apply sorting
   const sortedTxs = [...categoryTxs].sort((a, b) => {
@@ -71,7 +93,7 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
 
   const totalAmount = categoryTxs.reduce((sum, t) => sum + t.amount, 0);
   const avgAmount = categoryTxs.length > 0 ? totalAmount / categoryTxs.length : 0;
-  const isIncome = category.type === 'income';
+  const isIncome = activeCategory.type === 'income';
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -80,29 +102,37 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
           {/* Header Bar */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <View style={[styles.catIconWrap, { backgroundColor: category.color }]}>
-                <Ionicons name={category.icon as any} size={22} color="#FFFFFF" />
+              <View style={[styles.catIconWrap, { backgroundColor: activeCategory.color }]}>
+                <Ionicons name={(activeCategory.icon as any) || 'pricetag'} size={20} color="#FFFFFF" />
               </View>
               <View style={styles.headerTitles}>
                 <View style={styles.titleRow}>
-                  <Text style={styles.catTitle}>{category.name}</Text>
+                  <Text style={styles.catTitle}>{activeCategory.name}</Text>
                   <View
                     style={[
                       styles.typeBadge,
-                      { backgroundColor: isIncome ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
+                      {
+                        backgroundColor: isIncome
+                          ? isDark
+                            ? 'rgba(48, 209, 88, 0.2)'
+                            : 'rgba(52, 199, 89, 0.15)'
+                          : isDark
+                          ? 'rgba(255, 69, 58, 0.2)'
+                          : 'rgba(255, 59, 48, 0.15)',
+                      },
                     ]}
                   >
                     <Text
                       style={[
                         styles.typeBadgeText,
-                        { color: isIncome ? '#10B981' : '#EF4444' },
+                        { color: isIncome ? theme.colors.success : theme.colors.danger },
                       ]}
                     >
                       {isIncome ? 'Income' : 'Expense'}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.periodText}>{periodLabel}</Text>
+                <Text style={styles.periodText}>{displayPeriod}</Text>
               </View>
             </View>
 
@@ -111,7 +141,7 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
               style={styles.closeBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={22} color="#64748B" />
+              <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -122,7 +152,7 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
               <Text
                 style={[
                   styles.summaryValue,
-                  { color: isIncome ? '#10B981' : '#EF4444' },
+                  { color: isIncome ? theme.colors.success : theme.colors.danger },
                 ]}
               >
                 {formatAmount(totalAmount)}
@@ -134,152 +164,108 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
             <View style={styles.summaryCol}>
               <Text style={styles.summaryLabel}>Share</Text>
               <Text style={styles.summaryValue}>
-                {category.percent !== undefined ? `${category.percent}%` : '—'}
+                {activeCategory.percent !== undefined ? `${activeCategory.percent}%` : '—'}
               </Text>
             </View>
 
             <View style={styles.divider} />
 
             <View style={styles.summaryCol}>
-              <Text style={styles.summaryLabel}>Entries</Text>
-              <Text style={styles.summaryValue}>{categoryTxs.length}</Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.summaryCol}>
-              <Text style={styles.summaryLabel}>Avg/Entry</Text>
+              <Text style={styles.summaryLabel}>Average</Text>
               <Text style={styles.summaryValue}>{formatAmount(avgAmount)}</Text>
             </View>
           </View>
 
-          {/* Sort Controls */}
-          {categoryTxs.length > 1 && (
-            <View style={styles.sortRow}>
-              <Text style={styles.sortLabel}>Sort by:</Text>
-              <View style={styles.sortPills}>
-                <TouchableOpacity
-                  style={[styles.sortPill, sortBy === 'newest' && styles.sortPillActive]}
-                  onPress={() => setSortBy('newest')}
-                >
-                  <Text style={[styles.sortPillText, sortBy === 'newest' && styles.sortPillTextActive]}>
-                    Newest
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.sortPill, sortBy === 'highest' && styles.sortPillActive]}
-                  onPress={() => setSortBy('highest')}
-                >
-                  <Text style={[styles.sortPillText, sortBy === 'highest' && styles.sortPillTextActive]}>
-                    Highest
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.sortPill, sortBy === 'oldest' && styles.sortPillActive]}
-                  onPress={() => setSortBy('oldest')}
-                >
-                  <Text style={[styles.sortPillText, sortBy === 'oldest' && styles.sortPillTextActive]}>
-                    Oldest
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Transaction List */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-          >
-            {sortedTxs.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="receipt-outline" size={40} color="#94A3B8" />
-                </View>
-                <Text style={styles.emptyTitle}>No Entries Found</Text>
-                <Text style={styles.emptySubtitle}>
-                  There are no recorded transactions for {category.name} in {periodLabel}.
+          {/* Apple Style Sorting Filter Pills */}
+          <View style={styles.sortContainer}>
+            <Text style={styles.sortLabel}>SORT BY:</Text>
+            <View style={styles.sortButtons}>
+              <TouchableOpacity
+                style={[styles.sortBtn, sortBy === 'newest' && styles.sortBtnActive]}
+                onPress={() => setSortBy('newest')}
+              >
+                <Text style={[styles.sortBtnText, sortBy === 'newest' && styles.sortBtnTextActive]}>
+                  Newest
                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortBtn, sortBy === 'oldest' && styles.sortBtnActive]}
+                onPress={() => setSortBy('oldest')}
+              >
+                <Text style={[styles.sortBtnText, sortBy === 'oldest' && styles.sortBtnTextActive]}>
+                  Oldest
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortBtn, sortBy === 'highest' && styles.sortBtnActive]}
+                onPress={() => setSortBy('highest')}
+              >
+                <Text style={[styles.sortBtnText, sortBy === 'highest' && styles.sortBtnTextActive]}>
+                  Highest
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Itemized Transactions List */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
+            {sortedTxs.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Ionicons name="receipt-outline" size={40} color={theme.colors.textTertiary} />
+                <Text style={styles.emptyText}>No itemized entries found for this period</Text>
               </View>
             ) : (
-              sortedTxs.map((tx) => {
-                const account = accounts.find((a) => a.id === tx.accountId);
-                return (
-                  <View key={tx.id} style={styles.txCard}>
-                    <View style={styles.txMain}>
-                      {/* Left: Date with weekday and Account */}
-                      <View style={styles.txLeft}>
-                        <View style={styles.dateTag}>
-                          <Ionicons name="calendar-outline" size={13} color="#3B82F6" />
-                          <Text style={styles.dateText}>
-                            {formatDateWithWeekday(tx.date)}
-                          </Text>
+              <View style={styles.groupedList}>
+                {sortedTxs.map((tx, index) => {
+                  const acc = accounts.find((a) => a.id === tx.accountId);
+                  return (
+                    <React.Fragment key={tx.id}>
+                      {index > 0 && <View style={styles.separator} />}
+                      <View style={styles.txRow}>
+                        <View style={styles.txMain}>
+                          <Text style={styles.txDate}>{formatDateWithWeekday(tx.date)}</Text>
+                          <Text style={styles.txAccount}>{acc?.name || 'Account'}</Text>
+                          {!!tx.note && <Text style={styles.txNote}>{`"${tx.note}"`}</Text>}
                         </View>
 
-                        {tx.note ? (
-                          <Text style={styles.txNote} numberOfLines={2}>
-                            {tx.note}
+                        <View style={styles.txRight}>
+                          <Text
+                            style={[
+                              styles.txAmount,
+                              { color: isIncome ? theme.colors.success : theme.colors.text },
+                            ]}
+                          >
+                            {isIncome ? '+' : '-'}
+                            {formatAmount(tx.amount)}
                           </Text>
-                        ) : (
-                          <Text style={styles.txNoteEmpty}>No description</Text>
-                        )}
 
-                        {account && (
-                          <View style={styles.accountBadge}>
-                            <Ionicons
-                              name={(account.icon as any) || 'wallet-outline'}
-                              size={12}
-                              color={account.color || '#64748B'}
-                            />
-                            <Text style={styles.accountName}>{account.name}</Text>
+                          <View style={styles.txActions}>
+                            {onEditTransaction && (
+                              <TouchableOpacity
+                                style={styles.actionIconBtn}
+                                onPress={() => onEditTransaction(tx)}
+                              >
+                                <Ionicons name="pencil" size={13} color={theme.colors.textSecondary} />
+                              </TouchableOpacity>
+                            )}
+                            {onDeleteTransaction && (
+                              <TouchableOpacity
+                                style={styles.actionIconBtn}
+                                onPress={() => onDeleteTransaction(tx.id)}
+                              >
+                                <Ionicons name="trash-outline" size={13} color={theme.colors.danger} />
+                              </TouchableOpacity>
+                            )}
                           </View>
-                        )}
-                      </View>
-
-                      {/* Right: Amount & Actions */}
-                      <View style={styles.txRight}>
-                        <Text
-                          style={[
-                            styles.txAmount,
-                            { color: isIncome ? '#10B981' : '#EF4444' },
-                          ]}
-                        >
-                          {isIncome ? '+' : '-'}{formatAmount(tx.amount)}
-                        </Text>
-
-                        <View style={styles.actionsRow}>
-                          {onEditTransaction && (
-                            <TouchableOpacity
-                              style={styles.actionBtn}
-                              onPress={() => {
-                                onClose();
-                                onEditTransaction(tx);
-                              }}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="pencil-outline" size={16} color="#64748B" />
-                            </TouchableOpacity>
-                          )}
-
-                          {onDeleteTransaction && (
-                            <TouchableOpacity
-                              style={styles.actionBtn}
-                              onPress={() => onDeleteTransaction(tx.id)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                            </TouchableOpacity>
-                          )}
                         </View>
                       </View>
-                    </View>
-                  </View>
-                );
-              })
+                    </React.Fragment>
+                  );
+                })}
+              </View>
             )}
-            <View style={{ height: 30 }} />
           </ScrollView>
         </View>
       </SafeAreaView>
@@ -287,264 +273,212 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderTopLeftRadius: theme.radii.xl,
-    borderTopRightRadius: theme.radii.xl,
-    maxHeight: '88%',
-    minHeight: '55%',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderColor: theme.colors.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  catIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitles: {
-    flex: 1,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  catTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  typeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  periodText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: theme.radii.sm,
-    backgroundColor: theme.colors.surface,
-  },
-  summaryBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  summaryCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '700',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  divider: {
-    width: 1,
-    height: 24,
-    backgroundColor: theme.colors.border,
-  },
-  sortRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  sortLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  sortPills: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  sortPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: theme.radii.sm,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  sortPillActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primaryLight,
-  },
-  sortPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  sortPillTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  txCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.md,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  txMain: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  txLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  dateTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  txNote: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 6,
-  },
-  txNoteEmpty: {
-    fontSize: 13,
-    color: theme.colors.textTertiary,
-    fontStyle: 'italic',
-    marginBottom: 6,
-  },
-  accountBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: theme.colors.surface,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radii.xs,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  accountName: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  txRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  txAmount: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 8,
-  },
-  actionBtn: {
-    padding: 5,
-    borderRadius: theme.radii.xs,
-    backgroundColor: theme.colors.surface,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-  },
-  emptyIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.colors.text,
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    maxWidth: 260,
-    lineHeight: 18,
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderTopLeftRadius: theme.radii.xl,
+      borderTopRightRadius: theme.radii.xl,
+      maxHeight: '90%',
+      paddingTop: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingBottom: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    catIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitles: {
+      gap: 2,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    catTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.3,
+    },
+    typeBadge: {
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: theme.radii.xs,
+    },
+    typeBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    periodText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    closeBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    summaryBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      marginHorizontal: 16,
+      marginTop: 14,
+      paddingVertical: 12,
+      borderRadius: theme.radii.lg,
+    },
+    summaryCol: {
+      alignItems: 'center',
+    },
+    summaryLabel: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+      marginBottom: 3,
+    },
+    summaryValue: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+    },
+    divider: {
+      width: StyleSheet.hairlineWidth,
+      height: 28,
+      backgroundColor: theme.colors.border,
+    },
+    sortContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    sortLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      letterSpacing: 0.5,
+    },
+    sortButtons: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    sortBtn: {
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderRadius: theme.radii.full,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+    },
+    sortBtnActive: {
+      backgroundColor: theme.colors.primary,
+    },
+    sortBtnText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    sortBtnTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    listContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 36,
+    },
+    groupedList: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    separator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      marginLeft: 16,
+    },
+    txRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    txMain: {
+      flex: 1,
+    },
+    txDate: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 2,
+    },
+    txAccount: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    txNote: {
+      fontSize: 11,
+      color: theme.colors.textTertiary,
+      fontStyle: 'italic',
+      marginTop: 2,
+    },
+    txRight: {
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+    txAmount: {
+      fontSize: 15,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+    },
+    txActions: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    actionIconBtn: {
+      padding: 5,
+      borderRadius: theme.radii.xs,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+    },
+    emptyWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+    },
+    emptyText: {
+      color: theme.colors.textTertiary,
+      fontSize: 13,
+      marginTop: 8,
+    },
+  });

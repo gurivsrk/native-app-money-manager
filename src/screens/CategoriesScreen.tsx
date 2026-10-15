@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
+import { useTheme } from '../context/ThemeContext';
 import { Category } from '../types';
-import { theme } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 const ICON_PRESETS = [
   'cart-outline',
@@ -42,17 +43,16 @@ const ICON_PRESETS = [
 ];
 
 const COLOR_PRESETS = [
-  '#EF4444',
-  '#F97316',
-  '#F59E0B',
-  '#10B981',
-  '#06B6D4',
-  '#3B82F6',
-  '#6366F1',
-  '#8B5CF6',
-  '#EC4899',
-  '#14B8A6',
-  '#64748B',
+  '#FF3B30', // Apple Red
+  '#FF9500', // Apple Orange
+  '#FFCC00', // Apple Yellow
+  '#34C759', // Apple Green
+  '#00C7BE', // Apple Teal
+  '#007AFF', // Apple Blue
+  '#5856D6', // Apple Indigo
+  '#AF52DE', // Apple Purple
+  '#FF2D55', // Apple Pink
+  '#8E8E93', // Apple Gray
 ];
 
 interface Props {
@@ -60,6 +60,9 @@ interface Props {
 }
 
 export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const { categories, addCategory, updateCategory, deleteCategory } = useBudget();
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>('expense');
 
@@ -68,7 +71,7 @@ export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
 
   const [name, setName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('pricetag-outline');
-  const [selectedColor, setSelectedColor] = useState('#EF4444');
+  const [selectedColor, setSelectedColor] = useState('#FF3B30');
 
   const filteredCategories = categories.filter((c) => c.type === activeTab);
 
@@ -76,7 +79,7 @@ export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
     setEditingCategory(null);
     setName('');
     setSelectedIcon(activeTab === 'expense' ? 'cart-outline' : 'wallet-outline');
-    setSelectedColor(activeTab === 'expense' ? '#EF4444' : '#10B981');
+    setSelectedColor(activeTab === 'expense' ? '#FF3B30' : '#34C759');
     setModalVisible(true);
   };
 
@@ -114,14 +117,9 @@ export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
   };
 
   const handleDelete = (cat: Category) => {
-    if (filteredCategories.length <= 1) {
-      Alert.alert('Cannot Delete', `You must keep at least one ${cat.type} category.`);
-      return;
-    }
-
     Alert.alert(
       'Delete Category',
-      `Are you sure you want to delete "${cat.name}"?`,
+      `Are you sure you want to delete "${cat.name}"? Existing transactions will retain their history.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -139,172 +137,158 @@ export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
 
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {onClose && (
-            <TouchableOpacity onPress={onClose} style={styles.closeHeaderBtn} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <Ionicons name="chevron-down" size={24} color={theme.colors.text} />
             </TouchableOpacity>
           )}
           <View>
-            <Text style={styles.headerSubtitle}>Manage & Customize</Text>
+            <Text style={styles.headerSubtitle}>Classifications & Icons</Text>
             <Text style={styles.headerTitle}>Categories</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.addBtn} onPress={openAddModal} activeOpacity={0.8}>
-          <Ionicons name="add" size={24} color="#FFF" />
+          <Ionicons name="add" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Toggle Income / Expense Categories */}
-        <View style={styles.tabToggle}>
+      {/* Apple iOS Native Segmented Tab */}
+      <View style={styles.segmentedContainer}>
+        <View style={styles.segmentedControl}>
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'expense' && styles.tabBtnActiveExpense]}
+            style={[styles.segmentBtn, activeTab === 'expense' && styles.segmentBtnActive]}
             onPress={() => setActiveTab('expense')}
             activeOpacity={0.8}
           >
-            <Ionicons
-              name="arrow-down-circle"
-              size={16}
-              color={activeTab === 'expense' ? '#FFF' : theme.colors.dangerLight}
-            />
-            <Text style={[styles.tabBtnText, activeTab === 'expense' && styles.tabBtnTextActive]}>
-              Expenses
+            <Text
+              style={[styles.segmentText, activeTab === 'expense' && styles.segmentTextActive]}
+            >
+              Expense Categories
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'income' && styles.tabBtnActiveIncome]}
+            style={[styles.segmentBtn, activeTab === 'income' && styles.segmentBtnActive]}
             onPress={() => setActiveTab('income')}
             activeOpacity={0.8}
           >
-            <Ionicons
-              name="arrow-up-circle"
-              size={16}
-              color={activeTab === 'income' ? '#FFF' : theme.colors.successLight}
-            />
-            <Text style={[styles.tabBtnText, activeTab === 'income' && styles.tabBtnTextActive]}>
-              Income
+            <Text
+              style={[styles.segmentText, activeTab === 'income' && styles.segmentTextActive]}
+            >
+              Income Categories
             </Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.listHeader}>
-            {activeTab === 'expense' ? 'Expense' : 'Income'} Categories ({filteredCategories.length})
-          </Text>
-          <Text style={styles.hintText}>Tap to customize</Text>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.sectionHeader}>
+          {activeTab.toUpperCase()} CATEGORIES ({filteredCategories.length})
+        </Text>
 
-        <View style={styles.categoryGrid}>
-          {filteredCategories.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={styles.categoryCard}
-              onPress={() => openEditModal(cat)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.iconWrap,
-                  { backgroundColor: `${cat.color}20`, borderColor: `${cat.color}40` },
-                ]}
+        <View style={styles.groupedCard}>
+          {filteredCategories.map((cat, index) => (
+            <React.Fragment key={cat.id}>
+              {index > 0 && <View style={styles.separator} />}
+              <TouchableOpacity
+                style={styles.categoryRow}
+                onPress={() => openEditModal(cat)}
+                activeOpacity={0.7}
               >
-                <Ionicons name={(cat.icon as any) || 'pricetag'} size={22} color={cat.color} />
-              </View>
+                <View
+                  style={[
+                    styles.iconBox,
+                    {
+                      backgroundColor: isDark ? `${cat.color}25` : `${cat.color}15`,
+                    },
+                  ]}
+                >
+                  <Ionicons name={(cat.icon as any) || 'pricetag-outline'} size={20} color={cat.color} />
+                </View>
 
-              <Text style={styles.catName} numberOfLines={2}>
-                {cat.name}
-              </Text>
+                <Text style={styles.categoryName} numberOfLines={1}>
+                  {cat.name}
+                </Text>
 
-              <View style={styles.editIndicator}>
-                <Ionicons name="pencil-outline" size={13} color={theme.colors.textTertiary} />
-              </View>
-            </TouchableOpacity>
+                <View style={styles.colorIndicatorRow}>
+                  <View style={[styles.colorDot, { backgroundColor: cat.color }]} />
+                  <Ionicons name="chevron-forward" size={16} color={theme.colors.textTertiary} />
+                </View>
+              </TouchableOpacity>
+            </React.Fragment>
           ))}
         </View>
-
-        <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Add / Edit Category Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      {/* Modal Sheet for Add/Edit Category */}
+      <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>
-                {editingCategory ? 'Edit Category' : 'Add New Category'}
+                {editingCategory ? 'Edit Category' : `New ${activeTab} Category`}
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  setEditingCategory(null);
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close-circle" size={26} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets={true}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
-              <Text style={styles.fieldLabel}>Category Name</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputLabel}>Category Name</Text>
               <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Groceries, Gym, Rent"
-                placeholderTextColor={theme.colors.textTertiary}
+                style={styles.input}
                 value={name}
                 onChangeText={setName}
+                placeholder="e.g. Groceries, Entertainment"
+                placeholderTextColor={theme.colors.textTertiary}
               />
 
-              <Text style={styles.fieldLabel}>Color Theme</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorsRow}>
+              <Text style={styles.inputLabel}>Theme Color</Text>
+              <View style={styles.colorPresetsRow}>
                 {COLOR_PRESETS.map((color) => {
                   const isSelected = selectedColor === color;
                   return (
                     <TouchableOpacity
                       key={color}
                       style={[
-                        styles.colorDot,
+                        styles.colorCircle,
                         { backgroundColor: color },
-                        isSelected && styles.colorDotSelected,
+                        isSelected && styles.colorCircleSelected,
                       ]}
                       onPress={() => setSelectedColor(color)}
-                      activeOpacity={0.8}
                     >
-                      {isSelected && <Ionicons name="checkmark" size={18} color="#FFF" />}
+                      {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
 
-              <Text style={styles.fieldLabel}>Select Icon</Text>
-              <View style={styles.iconsGrid}>
+              <Text style={styles.inputLabel}>Icon Symbol</Text>
+              <View style={styles.iconPresetsGrid}>
                 {ICON_PRESETS.map((icon) => {
                   const isSelected = selectedIcon === icon;
                   return (
                     <TouchableOpacity
                       key={icon}
                       style={[
-                        styles.iconPickerBox,
+                        styles.iconPresetBtn,
                         isSelected && {
                           borderColor: selectedColor,
                           backgroundColor: `${selectedColor}20`,
                         },
                       ]}
                       onPress={() => setSelectedIcon(icon)}
-                      activeOpacity={0.8}
                     >
                       <Ionicons
                         name={icon as any}
@@ -316,22 +300,22 @@ export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
                 })}
               </View>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
-                <Text style={styles.saveBtnText}>
-                  {editingCategory ? 'Update Category' : 'Create Category'}
-                </Text>
-              </TouchableOpacity>
-
-              {editingCategory && (
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => handleDelete(editingCategory)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="trash-outline" size={18} color={theme.colors.dangerLight} />
-                  <Text style={styles.deleteBtnText}>Delete Category</Text>
+              <View style={styles.modalActions}>
+                {editingCategory && (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDelete(editingCategory)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
+                    <Text style={styles.deleteBtnText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                  <Text style={styles.saveBtnText}>
+                    {editingCategory ? 'Save Changes' : 'Create Category'}
+                  </Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -340,256 +324,254 @@ export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 14,
-    backgroundColor: theme.colors.background,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  closeHeaderBtn: {
-    padding: 6,
-    borderRadius: theme.radii.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  headerSubtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  addBtn: {
-    backgroundColor: theme.colors.primary,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-  },
-  tabToggle: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surfaceCard,
-    padding: 4,
-    borderRadius: theme.radii.md,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: theme.radii.sm,
-    gap: 6,
-  },
-  tabBtnActiveExpense: {
-    backgroundColor: 'rgba(244, 63, 94, 0.25)',
-    borderWidth: 1,
-    borderColor: theme.colors.danger,
-  },
-  tabBtnActiveIncome: {
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
-    borderWidth: 1,
-    borderColor: theme.colors.success,
-  },
-  tabBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  tabBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  listHeader: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  hintText: {
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    fontStyle: 'italic',
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  categoryCard: {
-    width: '31%',
-    backgroundColor: theme.colors.surfaceCard,
-    padding: 12,
-    borderRadius: theme.radii.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  catName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.text,
-    textAlign: 'center',
-    minHeight: 28,
-  },
-  editIndicator: {
-    marginTop: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderTopLeftRadius: theme.radii.xl,
-    borderTopRightRadius: theme.radii.xl,
-    padding: 24,
-    maxHeight: '90%',
-    borderTopWidth: 1,
-    borderColor: theme.colors.borderLight,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-    letterSpacing: -0.3,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-    marginBottom: 6,
-    marginTop: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  textInput: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 14,
-    color: theme.colors.text,
-    fontWeight: '600',
-  },
-  colorsRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  colorDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  colorDotSelected: {
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  iconsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-  },
-  iconPickerBox: {
-    width: 46,
-    height: 46,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 15,
-    borderRadius: theme.radii.md,
-    alignItems: 'center',
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    marginTop: 10,
-    gap: 8,
-  },
-  deleteBtnText: {
-    color: theme.colors.dangerLight,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    closeBtn: {
+      padding: 4,
+      marginRight: 4,
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    headerTitle: {
+      fontSize: 34,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.6,
+    },
+    addBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...theme.shadows.glowPrimary,
+    },
+    // Segmented Control
+    segmentedContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+    },
+    segmentedControl: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      padding: 3,
+      borderRadius: theme.radii.sm,
+    },
+    segmentBtn: {
+      flex: 1,
+      paddingVertical: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: theme.radii.xs,
+    },
+    segmentBtnActive: {
+      backgroundColor: isDark ? '#636366' : '#FFFFFF',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.12,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: isDark ? '#FFFFFF' : '#1C1C1E',
+      fontWeight: '700',
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 36,
+    },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      marginTop: 20,
+      marginBottom: 8,
+      paddingHorizontal: 4,
+    },
+    groupedCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+      ...theme.shadows.card,
+    },
+    separator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      marginLeft: 62,
+    },
+    categoryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    iconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    categoryName: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+    },
+    colorIndicatorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    colorDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderTopLeftRadius: theme.radii.xl,
+      borderTopRightRadius: theme.radii.xl,
+      padding: 20,
+      maxHeight: '85%',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.3,
+    },
+    inputLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+      marginTop: 12,
+    },
+    input: {
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: theme.colors.text,
+      fontSize: 15,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    colorPresetsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 6,
+    },
+    colorCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    colorCircleSelected: {
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    },
+    iconPresetsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 6,
+    },
+    iconPresetBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 24,
+      marginBottom: 12,
+    },
+    deleteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: theme.radii.md,
+      backgroundColor: isDark ? 'rgba(255, 69, 58, 0.15)' : 'rgba(255, 59, 48, 0.1)',
+    },
+    deleteBtnText: {
+      color: theme.colors.danger,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    saveBtn: {
+      flex: 1,
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.md,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+  });

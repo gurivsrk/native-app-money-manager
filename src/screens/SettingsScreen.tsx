@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
+import { useTheme } from '../context/ThemeContext';
 import { Currency } from '../types';
 import { firebaseConfig } from '../config/firebase';
 import { CategoriesScreen } from './CategoriesScreen';
-import { theme } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
+  const { theme, isDark, themeMode, setThemeMode } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const {
     currencies,
     activeCurrency,
@@ -184,327 +188,438 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
 
       <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>Preferences & Sync</Text>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Categories Navigation Card */}
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="grid" size={17} color={theme.colors.purpleLight} />
-            <Text style={styles.sectionTitle}>Categories & Classification</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.actionNavCard}
-          onPress={() => setCategoriesModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <View
-            style={[
-              styles.navCardIconBox,
-              { backgroundColor: theme.colors.purpleGlow, borderColor: 'rgba(139, 92, 246, 0.4)' },
-            ]}
-          >
-            <Ionicons name="grid-outline" size={22} color={theme.colors.purpleLight} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.navCardTitle}>Manage Categories</Text>
-            <Text style={styles.navCardSubtitle}>
-              Customize income and expense categories, icons & colors
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
-        </TouchableOpacity>
-
-        {/* Currency Preferences Section */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="cash" size={17} color={theme.colors.primaryLight} />
-            <Text style={styles.sectionTitle}>Default Currency & Rate</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.addCurrencyBtn}
-            onPress={() => setShowAddModal(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={16} color={theme.colors.primaryLight} />
-            <Text style={styles.addCurrencyBtnText}>+ Custom</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Currency Summary Card */}
-        <View style={styles.activeCurrencyCard}>
-          <View style={styles.currencyTop}>
-            <View style={styles.currencySymbolBadge}>
-              <Text style={styles.currencySymbolText}>{activeCurrency.symbol}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.activeCurrencyLabel}>Active Currency</Text>
-              <Text style={styles.activeCurrencyName}>
-                {activeCurrency.name} ({activeCurrency.code})
-              </Text>
-            </View>
-            <View style={styles.activeRatePill}>
-              <Text style={styles.activeRatePillText}>
-                1 USD = {activeCurrency.rate} {activeCurrency.code}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Choose Currency Picker Card */}
-        <View style={styles.selectCard}>
-          <Text style={styles.selectFieldLabel}>Select Base Display Currency</Text>
-          <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => setSelectModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.selectLeft}>
-              <View style={styles.selectFlagCircle}>
-                <Text style={styles.selectSymbol}>{activeCurrency.symbol}</Text>
-              </View>
-              <View>
-                <Text style={styles.selectMainText}>
-                  {activeCurrency.name} ({activeCurrency.code})
-                </Text>
-                <Text style={styles.selectSubText}>
-                  Exchange Rate: 1 USD = {activeCurrency.rate} {activeCurrency.code}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-
-          {/* Quick Edit Current Rate Button */}
-          <TouchableOpacity
-            style={styles.editCurrentRateBtn}
-            onPress={() => handleEditRate(activeCurrency)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="create-outline" size={16} color={theme.colors.primaryLight} />
-            <Text style={styles.editCurrentRateText}>
-              Edit Rate for {activeCurrency.code} ({activeCurrency.rate} / $)
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Firebase Cloud Sync Card */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="cloud" size={17} color={theme.colors.warningLight} />
-            <Text style={styles.sectionTitle}>Cloud Synchronization</Text>
-          </View>
-        </View>
-
-        <View style={styles.syncCard}>
-          <View style={styles.syncHeader}>
-            <View style={styles.firebaseLogoWrap}>
-              <Ionicons name="logo-firebase" size={24} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.syncTitleRow}>
-                <Text style={styles.syncTitle}>Firebase Firestore</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    cloudSyncStatus === 'synced' && styles.statusBadgeSynced,
-                    cloudSyncStatus === 'syncing' && styles.statusBadgeSyncing,
-                    cloudSyncStatus === 'error' && styles.statusBadgeError,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.statusDot,
-                      cloudSyncStatus === 'synced' && styles.statusDotSynced,
-                      cloudSyncStatus === 'syncing' && styles.statusDotSyncing,
-                      cloudSyncStatus === 'error' && styles.statusDotError,
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.statusText,
-                      cloudSyncStatus === 'synced' && styles.statusTextSynced,
-                      cloudSyncStatus === 'syncing' && styles.statusTextSyncing,
-                      cloudSyncStatus === 'error' && styles.statusTextError,
-                    ]}
-                  >
-                    {cloudSyncStatus === 'synced'
-                      ? 'Live & Synced'
-                      : cloudSyncStatus === 'syncing'
-                      ? 'Syncing...'
-                      : cloudSyncStatus === 'error'
-                      ? 'Needs Setup'
-                      : 'Offline'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.syncSub}>Project: {firebaseConfig.projectId}</Text>
-            </View>
-            <TouchableOpacity onPress={showFirebaseInfo} style={styles.syncInfoBtn}>
-              <Ionicons name="information-circle-outline" size={20} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Sync status metadata row */}
-          <View style={styles.syncMetaRow}>
-            <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
-            <Text style={styles.syncMetaText}>
-              Last Synced:{' '}
-              {lastSyncTime
-                ? new Date(lastSyncTime).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                  })
-                : 'Pending sync'}
-            </Text>
-          </View>
-
-          {/* Quick Action Buttons */}
-          <View style={styles.syncActionGrid}>
+        {/* APPEARANCE SECTION (Apple HIG Display & Appearance) */}
+        <Text style={styles.sectionHeader}>APPEARANCE</Text>
+        <View style={styles.groupedCard}>
+          <View style={styles.appearanceRow}>
+            {/* System Default Option */}
             <TouchableOpacity
-              style={[styles.syncActionButton, styles.syncPrimaryBtn]}
-              onPress={handleSyncNow}
-              disabled={syncInProgress}
-              activeOpacity={0.8}
+              style={[
+                styles.appearanceOption,
+                themeMode === 'system' && styles.appearanceOptionSelected,
+              ]}
+              onPress={() => setThemeMode('system')}
+              activeOpacity={0.7}
             >
-              {syncInProgress ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.syncPrimaryBtnText}>Sync Now</Text>
-                </>
+              <View
+                style={[
+                  styles.appearanceIconCircle,
+                  themeMode === 'system' && styles.appearanceIconCircleSelected,
+                ]}
+              >
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={20}
+                  color={themeMode === 'system' ? '#FFFFFF' : theme.colors.textSecondary}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.appearanceText,
+                  themeMode === 'system' && styles.appearanceTextSelected,
+                ]}
+              >
+                System
+              </Text>
+              <Text style={styles.appearanceCaption}>Auto</Text>
+              {themeMode === 'system' && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                </View>
               )}
             </TouchableOpacity>
 
+            {/* Light Option */}
             <TouchableOpacity
-              style={[styles.syncActionButton, styles.syncSecondaryBtn]}
-              onPress={handleTestConnection}
-              disabled={syncInProgress}
-              activeOpacity={0.8}
+              style={[
+                styles.appearanceOption,
+                themeMode === 'light' && styles.appearanceOptionSelected,
+              ]}
+              onPress={() => setThemeMode('light')}
+              activeOpacity={0.7}
             >
-              <Ionicons name="wifi-outline" size={16} color={theme.colors.primaryLight} />
-              <Text style={styles.syncSecondaryBtnText}>Test Conn</Text>
+              <View
+                style={[
+                  styles.appearanceIconCircle,
+                  themeMode === 'light' && styles.appearanceIconCircleSelected,
+                ]}
+              >
+                <Ionicons
+                  name="sunny"
+                  size={20}
+                  color={themeMode === 'light' ? '#FFFFFF' : '#FF9500'}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.appearanceText,
+                  themeMode === 'light' && styles.appearanceTextSelected,
+                ]}
+              >
+                Light
+              </Text>
+              <Text style={styles.appearanceCaption}>Clean</Text>
+              {themeMode === 'light' && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                </View>
+              )}
             </TouchableOpacity>
-          </View>
 
-          <View style={[styles.syncActionGrid, { marginTop: 8 }]}>
+            {/* Dark Option */}
             <TouchableOpacity
-              style={[styles.syncActionButton, styles.syncOutlineBtn]}
-              onPress={handleBackupToCloud}
-              disabled={syncInProgress}
-              activeOpacity={0.8}
+              style={[
+                styles.appearanceOption,
+                themeMode === 'dark' && styles.appearanceOptionSelected,
+              ]}
+              onPress={() => setThemeMode('dark')}
+              activeOpacity={0.7}
             >
-              <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.syncOutlineBtnText}>Backup to Cloud</Text>
+              <View
+                style={[
+                  styles.appearanceIconCircle,
+                  themeMode === 'dark' && styles.appearanceIconCircleSelected,
+                ]}
+              >
+                <Ionicons
+                  name="moon"
+                  size={20}
+                  color={themeMode === 'dark' ? '#FFFFFF' : '#8E8E93'}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.appearanceText,
+                  themeMode === 'dark' && styles.appearanceTextSelected,
+                ]}
+              >
+                Dark
+              </Text>
+              <Text style={styles.appearanceCaption}>OLED</Text>
+              {themeMode === 'dark' && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                </View>
+              )}
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.syncActionButton, styles.syncOutlineBtn]}
-              onPress={handleRestoreFromCloud}
-              disabled={syncInProgress}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="cloud-download-outline" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.syncOutlineBtnText}>Restore</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Offline-First notice */}
-          <View style={styles.syncNotice}>
-            <Ionicons name="shield-checkmark-outline" size={15} color={theme.colors.successLight} />
-            <Text style={styles.syncNoticeText}>
-              Offline-first: changes save instantly locally and sync to Firebase whenever online.
-            </Text>
           </View>
         </View>
 
-        <View style={{ height: 60 }} />
+        {/* CATEGORIES SECTION */}
+        <Text style={styles.sectionHeader}>CATEGORIES & TAGS</Text>
+        <View style={styles.groupedCard}>
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={() => setCategoriesModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#AF52DE' }]}>
+              <Ionicons name="grid" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Manage Categories</Text>
+              <Text style={styles.cellSubtitle}>Icons, colors & budget classifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* CURRENCY & VALUATION SECTION */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>CURRENCY & EXCHANGE RATES</Text>
+          <TouchableOpacity
+            onPress={() => setShowAddModal(true)}
+            activeOpacity={0.7}
+            style={styles.headerActionBtn}
+          >
+            <Text style={styles.headerActionText}>+ Add Custom</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.groupedCard}>
+          {/* Active Currency Cell */}
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={() => setSelectModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#007AFF' }]}>
+              <Text style={styles.currencyBadgeSymbol}>{activeCurrency.symbol}</Text>
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Active Currency</Text>
+              <Text style={styles.cellSubtitle}>
+                {activeCurrency.name} ({activeCurrency.code})
+              </Text>
+            </View>
+            <View style={styles.cellRightWrap}>
+              <Text style={styles.cellValueText}>1 USD = {activeCurrency.rate}</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          {/* Quick Edit Current Currency Rate */}
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={() => handleEditRate(activeCurrency)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#34C759' }]}>
+              <Ionicons name="calculator" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Adjust Exchange Rate</Text>
+              <Text style={styles.cellSubtitle}>
+                Edit rate for {activeCurrency.code} ({activeCurrency.rate} / USD)
+              </Text>
+            </View>
+            <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* FIREBASE CLOUD SYNC SECTION */}
+        <Text style={styles.sectionHeader}>FIREBASE CLOUD SYNC</Text>
+        <View style={styles.groupedCard}>
+          {/* Status Header Cell */}
+          <TouchableOpacity style={styles.cellRow} onPress={showFirebaseInfo} activeOpacity={0.7}>
+            <View style={[styles.cellIconBadge, { backgroundColor: '#FF9500' }]}>
+              <Ionicons name="logo-firebase" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Cloud Database</Text>
+              <Text style={styles.cellSubtitle}>
+                {firebaseConfig.projectId} • {lastSyncTime ? `Last: ${lastSyncTime}` : 'Offline-first'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statusBadge,
+                cloudSyncStatus === 'synced' && styles.statusBadgeSynced,
+                cloudSyncStatus === 'syncing' && styles.statusBadgeSyncing,
+                cloudSyncStatus === 'error' && styles.statusBadgeError,
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  cloudSyncStatus === 'synced' && styles.statusDotSynced,
+                  cloudSyncStatus === 'syncing' && styles.statusDotSyncing,
+                  cloudSyncStatus === 'error' && styles.statusDotError,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  cloudSyncStatus === 'synced' && styles.statusTextSynced,
+                  cloudSyncStatus === 'syncing' && styles.statusTextSyncing,
+                  cloudSyncStatus === 'error' && styles.statusTextError,
+                ]}
+              >
+                {cloudSyncStatus === 'synced'
+                  ? 'Live'
+                  : cloudSyncStatus === 'syncing'
+                  ? 'Syncing'
+                  : cloudSyncStatus === 'error'
+                  ? 'Check Rules'
+                  : 'Offline'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          {/* Sync Now */}
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={handleSyncNow}
+            disabled={syncInProgress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#007AFF' }]}>
+              {syncInProgress ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="sync" size={18} color="#FFFFFF" />
+              )}
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Sync Now</Text>
+              <Text style={styles.cellSubtitle}>Merge local & cloud entries seamlessly</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          {/* Upload Local to Cloud */}
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={handleBackupToCloud}
+            disabled={syncInProgress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#34C759' }]}>
+              <Ionicons name="cloud-upload" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Backup to Cloud</Text>
+              <Text style={styles.cellSubtitle}>Upload current device state to Firestore</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          {/* Restore from Cloud */}
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={handleRestoreFromCloud}
+            disabled={syncInProgress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#FF3B30' }]}>
+              <Ionicons name="cloud-download" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={[styles.cellTitle, { color: theme.colors.danger }]}>
+                Restore from Cloud
+              </Text>
+              <Text style={styles.cellSubtitle}>Download remote state onto this device</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          {/* Ping Test */}
+          <TouchableOpacity
+            style={styles.cellRow}
+            onPress={handleTestConnection}
+            disabled={syncInProgress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.cellIconBadge, { backgroundColor: '#5856D6' }]}>
+              <Ionicons name="pulse" size={18} color="#FFFFFF" />
+            </View>
+            <View style={styles.cellContent}>
+              <Text style={styles.cellTitle}>Test Connection</Text>
+              <Text style={styles.cellSubtitle}>Verify ping & Firestore read/write permissions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* ALL AVAILABLE CURRENCIES */}
+        <Text style={styles.sectionHeader}>SUPPORTED CURRENCIES & RATES</Text>
+        <View style={styles.groupedCard}>
+          {currencies.map((curr, index) => {
+            const isSelected = curr.code === activeCurrency.code;
+            return (
+              <React.Fragment key={curr.code}>
+                {index > 0 && <View style={styles.separator} />}
+                <TouchableOpacity
+                  style={styles.currencyRow}
+                  onPress={() => setActiveCurrencyCode(curr.code)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.currencyIconWrap,
+                      isSelected && { backgroundColor: theme.colors.primary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.currencyIconText,
+                        isSelected && { color: '#FFFFFF', fontWeight: '800' },
+                      ]}
+                    >
+                      {curr.symbol}
+                    </Text>
+                  </View>
+                  <View style={styles.currencyInfo}>
+                    <Text style={styles.currencyRowName}>{curr.name}</Text>
+                    <Text style={styles.currencyRowRate}>
+                      1 USD = {curr.rate} {curr.code}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editPill}
+                    onPress={() => handleEditRate(curr)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="pencil" size={13} color={theme.colors.primary} />
+                    <Text style={styles.editPillText}>Edit</Text>
+                  </TouchableOpacity>
+                  {isSelected && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={theme.colors.primary}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                </TouchableOpacity>
+              </React.Fragment>
+            );
+          })}
+        </View>
+
+        {/* APP INFO FOOTER */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Monthly Budget & Expense Manager</Text>
+          <Text style={styles.footerSub}>Version 1.0.0 • Offline-first with Cloud Sync</Text>
+        </View>
       </ScrollView>
 
-      {/* Categories Full Modal */}
-      <Modal visible={categoriesModalVisible} animationType="slide">
-        <CategoriesScreen onClose={() => setCategoriesModalVisible(false)} />
-      </Modal>
-
-      {/* Select Option Dropdown Modal */}
-      <Modal visible={selectModalVisible} animationType="slide" transparent>
+      {/* MODAL 1: Currency Dropdown Picker */}
+      <Modal visible={selectModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.selectSheet}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Select Currency</Text>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalSheetTitle}>Select Currency</Text>
               <TouchableOpacity onPress={() => setSelectModalVisible(false)}>
-                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+                <Ionicons name="close-circle" size={26} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+            <ScrollView style={{ maxHeight: 380 }}>
               {currencies.map((curr) => {
                 const isSelected = curr.code === activeCurrency.code;
                 return (
                   <TouchableOpacity
                     key={curr.code}
-                    style={[styles.dropdownItem, isSelected && styles.dropdownItemSelected]}
-                    onPress={async () => {
-                      await setActiveCurrencyCode(curr.code);
+                    style={[styles.modalSelectItem, isSelected && styles.modalSelectItemActive]}
+                    onPress={() => {
+                      setActiveCurrencyCode(curr.code);
                       setSelectModalVisible(false);
                     }}
-                    activeOpacity={0.7}
                   >
-                    <View style={styles.dropdownLeft}>
-                      <View
-                        style={[
-                          styles.dropdownSymbolCircle,
-                          isSelected && styles.dropdownSymbolCircleActive,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.dropdownSymbolText,
-                            isSelected && { color: '#FFFFFF' },
-                          ]}
-                        >
-                          {curr.symbol}
-                        </Text>
+                    <View style={styles.modalSelectLeft}>
+                      <View style={styles.modalSelectSymbolBadge}>
+                        <Text style={styles.modalSelectSymbol}>{curr.symbol}</Text>
                       </View>
                       <View>
-                        <Text
-                          style={[
-                            styles.dropdownName,
-                            isSelected && { color: theme.colors.primaryLight, fontWeight: '800' },
-                          ]}
-                        >
-                          {curr.name} ({curr.code})
-                        </Text>
-                        <Text style={styles.dropdownRate}>
+                        <Text style={styles.modalSelectName}>{curr.name}</Text>
+                        <Text style={styles.modalSelectRate}>
                           1 USD = {curr.rate} {curr.code}
                         </Text>
                       </View>
                     </View>
-
-                    <View style={styles.dropdownRight}>
-                      {isSelected ? (
-                        <Ionicons name="checkmark-circle" size={22} color={theme.colors.primary} />
-                      ) : (
-                        <TouchableOpacity
-                          style={styles.smallRateEditBtn}
-                          onPress={() => {
-                            setSelectModalVisible(false);
-                            handleEditRate(curr);
-                          }}
-                        >
-                          <Ionicons name="pencil-outline" size={15} color={theme.colors.textSecondary} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={22} color={theme.colors.primary} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -513,665 +628,506 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Edit Rate Modal */}
-      <Modal visible={modalVisible} animationType="fade" transparent>
+      {/* MODAL 2: Edit Exchange Rate */}
+      <Modal visible={modalVisible} transparent animationType="fade">
         <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Edit Exchange Rate</Text>
-            <Text style={styles.dialogSubtitle}>
-              Exchange rate for 1 USD to {editingCurrency?.name} ({editingCurrency?.code})
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalSheetTitle}>
+              Update Rate: {editingCurrency?.name} ({editingCurrency?.code})
             </Text>
-
+            <Text style={styles.modalInputLabel}>Exchange rate against 1 USD base:</Text>
             <TextInput
-              style={styles.dialogInput}
+              style={styles.modalInput}
               keyboardType="numeric"
-              placeholder="1.0"
-              placeholderTextColor={theme.colors.textTertiary}
               value={rateInput}
               onChangeText={setRateInput}
+              placeholder="e.g. 83.5"
+              placeholderTextColor={theme.colors.textTertiary}
             />
-
-            <View style={styles.dialogActions}>
+            <View style={styles.modalActionsRow}>
               <TouchableOpacity
-                style={styles.dialogCancelBtn}
+                style={[styles.modalBtn, styles.modalBtnCancel]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.dialogCancelText}>Cancel</Text>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity style={styles.dialogSaveBtn} onPress={handleSaveRate}>
-                <Text style={styles.dialogSaveText}>Save Rate</Text>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSave]}
+                onPress={handleSaveRate}
+              >
+                <Text style={styles.modalBtnSaveText}>Save Rate</Text>
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Add Custom Currency Modal */}
-      <Modal visible={showAddModal} animationType="slide" transparent>
+      {/* MODAL 3: Add Custom Currency */}
+      <Modal visible={showAddModal} transparent animationType="fade">
         <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalSheet}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Add Custom Currency</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+            <Text style={styles.modalSheetTitle}>Add Custom Currency</Text>
+            <Text style={styles.modalInputLabel}>Currency Code (e.g. CAD, JPY)</Text>
+            <TextInput
+              style={styles.modalInput}
+              autoCapitalize="characters"
+              maxLength={4}
+              value={newCode}
+              onChangeText={setNewCode}
+              placeholder="e.g. SGD"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <Text style={styles.modalInputLabel}>Currency Symbol (e.g. $, ¥, ₹)</Text>
+            <TextInput
+              style={styles.modalInput}
+              maxLength={4}
+              value={newSymbol}
+              onChangeText={setNewSymbol}
+              placeholder="e.g. S$"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <Text style={styles.modalInputLabel}>Full Name</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="e.g. Singapore Dollar"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <Text style={styles.modalInputLabel}>Exchange Rate (1 USD = ?)</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={newRate}
+              onChangeText={setNewRate}
+              placeholder="e.g. 1.35"
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setShowAddModal(false)}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSave]}
+                onPress={handleCreateCurrency}
+              >
+                <Text style={styles.modalBtnSaveText}>Add Currency</Text>
               </TouchableOpacity>
             </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets={true}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
-              <Text style={styles.fieldLabel}>Currency Code (e.g. AUD, CHF)</Text>
-              <TextInput
-                style={styles.sheetInput}
-                placeholder="e.g. CHF"
-                placeholderTextColor={theme.colors.textTertiary}
-                autoCapitalize="characters"
-                value={newCode}
-                onChangeText={setNewCode}
-              />
-
-              <Text style={styles.fieldLabel}>Currency Symbol (e.g. Fr, $, €)</Text>
-              <TextInput
-                style={styles.sheetInput}
-                placeholder="e.g. Fr."
-                placeholderTextColor={theme.colors.textTertiary}
-                value={newSymbol}
-                onChangeText={setNewSymbol}
-              />
-
-              <Text style={styles.fieldLabel}>Currency Full Name</Text>
-              <TextInput
-                style={styles.sheetInput}
-                placeholder="e.g. Swiss Franc"
-                placeholderTextColor={theme.colors.textTertiary}
-                value={newName}
-                onChangeText={setNewName}
-              />
-
-              <Text style={styles.fieldLabel}>Exchange Rate (Relative to 1 USD)</Text>
-              <TextInput
-                style={styles.sheetInput}
-                keyboardType="numeric"
-                placeholder="e.g. 0.90"
-                placeholderTextColor={theme.colors.textTertiary}
-                value={newRate}
-                onChangeText={setNewRate}
-              />
-
-              <TouchableOpacity style={styles.sheetSaveBtn} onPress={handleCreateCurrency}>
-                <Text style={styles.sheetSaveBtnText}>Add Currency</Text>
-              </TouchableOpacity>
-            </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Full Categories Screen Modal */}
+      <Modal
+        visible={categoriesModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setCategoriesModalVisible(false)}
+      >
+        <CategoriesScreen onClose={() => setCategoriesModalVisible(false)} />
       </Modal>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 14,
-    backgroundColor: theme.colors.background,
-  },
-  headerSubtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 8,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    letterSpacing: -0.2,
-  },
-  actionNavCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceCard,
-    padding: 16,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  navCardIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-    borderWidth: 1,
-  },
-  navCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  navCardSubtitle: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  addCurrencyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: theme.colors.primaryGlow,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  addCurrencyBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  activeCurrencyCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.lg,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  currencyTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  currencySymbolBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: theme.colors.primaryGlow,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  currencySymbolText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: theme.colors.primaryLight,
-  },
-  activeCurrencyLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  activeCurrencyName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginTop: 2,
-  },
-  activeRatePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  activeRatePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  selectCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.md,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  selectFieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  selectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.surface,
-    padding: 12,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  selectLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  selectFlagCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectSymbol: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  selectMainText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  selectSubText: {
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    marginTop: 2,
-  },
-  editCurrentRateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingVertical: 6,
-  },
-  editCurrentRateText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-  },
-  syncCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    padding: 16,
-    borderRadius: theme.radii.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  syncHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  syncTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingRight: 6,
-  },
-  firebaseLogoWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  syncTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  syncSub: {
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    marginTop: 2,
-  },
-  syncInfoBtn: {
-    padding: 6,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radii.xs,
-    backgroundColor: theme.colors.surface,
-  },
-  statusBadgeSynced: {
-    backgroundColor: theme.colors.successGlow,
-  },
-  statusBadgeSyncing: {
-    backgroundColor: theme.colors.warningGlow,
-  },
-  statusBadgeError: {
-    backgroundColor: theme.colors.dangerGlow,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.textSecondary,
-    marginRight: 5,
-  },
-  statusDotSynced: {
-    backgroundColor: theme.colors.successLight,
-  },
-  statusDotSyncing: {
-    backgroundColor: theme.colors.warningLight,
-  },
-  statusDotError: {
-    backgroundColor: theme.colors.dangerLight,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-  },
-  statusTextSynced: {
-    color: theme.colors.successLight,
-  },
-  statusTextSyncing: {
-    color: theme.colors.warningLight,
-  },
-  statusTextError: {
-    color: theme.colors.dangerLight,
-  },
-  syncMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  syncMetaText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  syncActionGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  syncActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: theme.radii.sm,
-    gap: 6,
-  },
-  syncPrimaryBtn: {
-    backgroundColor: theme.colors.primary,
-  },
-  syncPrimaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  syncSecondaryBtn: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  syncSecondaryBtnText: {
-    color: theme.colors.primaryLight,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  syncOutlineBtn: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  syncOutlineBtnText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  syncNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    padding: 10,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  syncNoticeText: {
-    fontSize: 11,
-    color: theme.colors.successLight,
-    flex: 1,
-    lineHeight: 15,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'flex-end',
-  },
-  selectSheet: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderTopLeftRadius: theme.radii.xl,
-    borderTopRightRadius: theme.radii.xl,
-    padding: 20,
-    maxHeight: '80%',
-    borderTopWidth: 1,
-    borderColor: theme.colors.borderLight,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: theme.radii.sm,
-    marginBottom: 6,
-  },
-  dropdownItemSelected: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-  },
-  dropdownLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dropdownSymbolCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownSymbolCircleActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  dropdownSymbolText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  dropdownName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  dropdownRate: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  dropdownRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  smallRateEditBtn: {
-    padding: 6,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.xs,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  dialogCard: {
-    width: '90%',
-    alignSelf: 'center',
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radii.lg,
-    padding: 20,
-    marginBottom: 40,
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
-  },
-  dialogTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  dialogSubtitle: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginBottom: 16,
-  },
-  dialogInput: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-    marginBottom: 20,
-  },
-  dialogActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  dialogCancelBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  dialogCancelText: {
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  dialogSaveBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: theme.radii.sm,
-  },
-  dialogSaveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  modalSheet: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderTopLeftRadius: theme.radii.xl,
-    borderTopRightRadius: theme.radii.xl,
-    padding: 20,
-    borderTopWidth: 1,
-    borderColor: theme.colors.borderLight,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  sheetInput: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: theme.colors.text,
-  },
-  sheetSaveBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 14,
-    borderRadius: theme.radii.md,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  sheetSaveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
+    headerTitle: {
+      fontSize: 34,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.6,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 40,
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 24,
+      marginBottom: 8,
+      paddingHorizontal: 4,
+    },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      marginTop: 22,
+      marginBottom: 8,
+      paddingHorizontal: 4,
+    },
+    headerActionBtn: {
+      paddingVertical: 2,
+      paddingHorizontal: 4,
+    },
+    headerActionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.primary,
+    },
+    groupedCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+      ...theme.shadows.card,
+    },
+    separator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      marginLeft: 54,
+    },
+    cellRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      minHeight: 52,
+    },
+    cellIconBadge: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 14,
+    },
+    currencyBadgeSymbol: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    cellContent: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    cellTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+    },
+    cellSubtitle: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    cellRightWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    cellValueText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+    },
+    // Appearance Segmented Selector
+    appearanceRow: {
+      flexDirection: 'row',
+      padding: 10,
+      gap: 10,
+    },
+    appearanceOption: {
+      flex: 1,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 6,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      position: 'relative',
+    },
+    appearanceOptionSelected: {
+      borderColor: theme.colors.primary,
+      backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF',
+      ...theme.shadows.card,
+    },
+    appearanceIconCircle: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    appearanceIconCircleSelected: {
+      backgroundColor: theme.colors.primary,
+    },
+    appearanceText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    appearanceTextSelected: {
+      color: theme.colors.text,
+      fontWeight: '700',
+    },
+    appearanceCaption: {
+      fontSize: 11,
+      color: theme.colors.textTertiary,
+      marginTop: 2,
+    },
+    checkBadge: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Status Badge
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radii.full,
+      backgroundColor: 'rgba(142, 142, 147, 0.15)',
+      gap: 5,
+    },
+    statusBadgeSynced: {
+      backgroundColor: theme.colors.successGlow,
+    },
+    statusBadgeSyncing: {
+      backgroundColor: theme.colors.primaryGlow,
+    },
+    statusBadgeError: {
+      backgroundColor: theme.colors.dangerGlow,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.textTertiary,
+    },
+    statusDotSynced: {
+      backgroundColor: theme.colors.success,
+    },
+    statusDotSyncing: {
+      backgroundColor: theme.colors.primary,
+    },
+    statusDotError: {
+      backgroundColor: theme.colors.danger,
+    },
+    statusText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    statusTextSynced: {
+      color: theme.colors.success,
+    },
+    statusTextSyncing: {
+      color: theme.colors.primary,
+    },
+    statusTextError: {
+      color: theme.colors.danger,
+    },
+    // Currency list item
+    currencyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    currencyIconWrap: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    currencyIconText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    currencyInfo: {
+      flex: 1,
+    },
+    currencyRowName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    currencyRowRate: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 1,
+    },
+    editPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radii.sm,
+      backgroundColor: theme.colors.primaryGlow,
+    },
+    editPillText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.primary,
+    },
+    footer: {
+      alignItems: 'center',
+      marginTop: 36,
+      marginBottom: 20,
+    },
+    footerText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    footerSub: {
+      fontSize: 11,
+      color: theme.colors.textTertiary,
+      marginTop: 4,
+    },
+    // Modals
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalSheet: {
+      width: '100%',
+      maxWidth: 420,
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.xl,
+      padding: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    modalSheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    modalInputLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+      marginTop: 10,
+    },
+    modalInput: {
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: theme.colors.text,
+      fontSize: 15,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+    },
+    modalActionsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 20,
+    },
+    modalBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: theme.radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalBtnCancel: {
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+    },
+    modalBtnCancelText: {
+      color: theme.colors.text,
+      fontWeight: '600',
+      fontSize: 15,
+    },
+    modalBtnSave: {
+      backgroundColor: theme.colors.primary,
+    },
+    modalBtnSaveText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    modalSelectItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: theme.radii.md,
+      marginBottom: 6,
+    },
+    modalSelectItemActive: {
+      backgroundColor: theme.colors.primaryGlow,
+    },
+    modalSelectLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    modalSelectSymbolBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalSelectSymbol: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    modalSelectName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    modalSelectRate: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+  });

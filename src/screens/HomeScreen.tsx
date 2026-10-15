@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
+import { useTheme } from '../context/ThemeContext';
 import { TransactionCard } from '../components/TransactionCard';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { Transaction, TransactionType } from '../types';
 import { MonthCalendarBar } from '../components/MonthCalendarBar';
 import { CalendarMonthPickerModal } from '../components/CalendarMonthPickerModal';
 import { getCurrentYearMonthString, formatYearMonth } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 export const HomeScreen: React.FC = () => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const {
     accounts,
     categories,
@@ -64,16 +68,16 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
 
-      {/* Top Header */}
+      {/* Apple Header */}
       <View style={styles.header}>
         <View>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusPillText}>Personal Finance</Text>
-          </View>
-          <Text style={styles.appName}>Money Manager</Text>
+          <Text style={styles.headerSubtitle}>Personal Finance</Text>
+          <Text style={styles.headerTitle}>Overview</Text>
         </View>
 
         <TouchableOpacity
@@ -81,7 +85,7 @@ export const HomeScreen: React.FC = () => {
           onPress={() => openGlobalAddModal('expense')}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={24} color="#FFF" />
+          <Ionicons name="add" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -89,14 +93,14 @@ export const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Interactive Month Navigator Bar */}
+        {/* Apple Style Month Navigator Bar */}
         <MonthCalendarBar
           selectedYearMonth={selectedYM}
           onChangeYearMonth={setSelectedYM}
           onOpenPicker={() => setPickerModalVisible(true)}
         />
 
-        {/* Main Balance Card (Fintech Card Glow) */}
+        {/* Apple Wallet Style Hero Balance Card */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceTopRow}>
             <View style={styles.currencyBadge}>
@@ -116,26 +120,31 @@ export const HomeScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.balanceLabel}>Total Net Worth</Text>
+          <Text style={styles.balanceLabel}>Total Balance</Text>
           <Text style={styles.balanceAmount}>
             {showBalance ? formatAmount(totalBalance) : '••••••••'}
           </Text>
 
           {/* Income vs Expense Ratio Mini Bar */}
           <View style={styles.ratioBarContainer}>
-            <View style={[styles.ratioBarFill, { width: `${Math.min(100, Math.max(0, incomeRatio))}%` }]} />
+            <View
+              style={[
+                styles.ratioBarFill,
+                { width: `${Math.min(100, Math.max(0, incomeRatio))}%` },
+              ]}
+            />
           </View>
 
           {/* Income & Expense Breakdown Row */}
           <View style={styles.summaryRow}>
             {/* Income */}
             <View style={styles.summaryItem}>
-              <View style={[styles.arrowCircle, { backgroundColor: theme.colors.successGlow }]}>
-                <Ionicons name="arrow-up" size={16} color={theme.colors.successLight} />
+              <View style={[styles.arrowCircle, { backgroundColor: isDark ? 'rgba(48, 209, 88, 0.2)' : 'rgba(52, 199, 89, 0.15)' }]}>
+                <Ionicons name="arrow-up" size={15} color={theme.colors.success} />
               </View>
               <View>
                 <Text style={styles.summaryItemLabel}>Income</Text>
-                <Text style={[styles.summaryItemValue, { color: theme.colors.successLight }]}>
+                <Text style={[styles.summaryItemValue, { color: theme.colors.success }]}>
                   +{formatAmount(summary.totalIncome)}
                 </Text>
               </View>
@@ -145,12 +154,12 @@ export const HomeScreen: React.FC = () => {
 
             {/* Expense */}
             <View style={styles.summaryItem}>
-              <View style={[styles.arrowCircle, { backgroundColor: theme.colors.dangerGlow }]}>
-                <Ionicons name="arrow-down" size={16} color={theme.colors.dangerLight} />
+              <View style={[styles.arrowCircle, { backgroundColor: isDark ? 'rgba(255, 69, 58, 0.2)' : 'rgba(255, 59, 48, 0.15)' }]}>
+                <Ionicons name="arrow-down" size={15} color={theme.colors.danger} />
               </View>
               <View>
                 <Text style={styles.summaryItemLabel}>Expense</Text>
-                <Text style={[styles.summaryItemValue, { color: theme.colors.dangerLight }]}>
+                <Text style={[styles.summaryItemValue, { color: theme.colors.danger }]}>
                   -{formatAmount(summary.totalExpense)}
                 </Text>
               </View>
@@ -160,10 +169,10 @@ export const HomeScreen: React.FC = () => {
           {/* Savings Metric Banner */}
           <View style={styles.savingsBanner}>
             <View style={styles.savingsLeft}>
-              <Ionicons name="sparkles" size={15} color={theme.colors.warningLight} />
+              <Ionicons name="sparkles" size={14} color={theme.colors.warning} />
               <Text style={styles.savingsBannerText}>
                 Net Saved:{' '}
-                <Text style={{ fontWeight: '800', color: theme.colors.text }}>
+                <Text style={{ fontWeight: '700', color: theme.colors.text }}>
                   {formatAmount(summary.netSavings)}
                 </Text>
               </Text>
@@ -174,8 +183,6 @@ export const HomeScreen: React.FC = () => {
                 {
                   backgroundColor:
                     summary.netSavings >= 0 ? theme.colors.successGlow : theme.colors.dangerGlow,
-                  borderColor:
-                    summary.netSavings >= 0 ? theme.colors.successDark : theme.colors.dangerDark,
                 },
               ]}
             >
@@ -185,8 +192,8 @@ export const HomeScreen: React.FC = () => {
                   {
                     color:
                       summary.netSavings >= 0
-                        ? theme.colors.successLight
-                        : theme.colors.dangerLight,
+                        ? theme.colors.success
+                        : theme.colors.danger,
                   },
                 ]}
               >
@@ -196,65 +203,68 @@ export const HomeScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Quick Action Buttons */}
+        {/* Apple Style Quick Action Buttons */}
         <View style={styles.quickActions}>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnIncome]}
-            onPress={() => openAddModal('income')}
-            activeOpacity={0.75}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: theme.colors.successGlow }]}>
-              <Ionicons name="arrow-up-circle" size={18} color={theme.colors.successLight} />
-            </View>
-            <Text style={[styles.actionBtnText, { color: theme.colors.successLight }]}>+ Income</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnExpense]}
+            style={styles.actionBtn}
             onPress={() => openAddModal('expense')}
-            activeOpacity={0.75}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: theme.colors.dangerGlow }]}>
-              <Ionicons name="arrow-down-circle" size={18} color={theme.colors.dangerLight} />
+            <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.danger }]}>
+              <Ionicons name="remove" size={20} color="#FFFFFF" />
             </View>
-            <Text style={[styles.actionBtnText, { color: theme.colors.dangerLight }]}>- Expense</Text>
+            <Text style={styles.actionBtnLabel}>Expense</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnTransfer]}
-            onPress={() => openAddModal('transfer')}
-            activeOpacity={0.75}
+            style={styles.actionBtn}
+            onPress={() => openAddModal('income')}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: theme.colors.primaryGlow }]}>
-              <Ionicons name="swap-horizontal" size={18} color={theme.colors.primaryLight} />
+            <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.success }]}>
+              <Ionicons name="add" size={20} color="#FFFFFF" />
             </View>
-            <Text style={[styles.actionBtnText, { color: theme.colors.primaryLight }]}>Transfer</Text>
+            <Text style={styles.actionBtnLabel}>Income</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => openAddModal('transfer')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.primary }]}>
+              <Ionicons name="swap-horizontal" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.actionBtnLabel}>Transfer</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Accounts Horizontal List */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="wallet-outline" size={18} color={theme.colors.primaryLight} />
-            <Text style={styles.sectionTitle}>Accounts & Wallets</Text>
-          </View>
-          <Text style={styles.sectionCount}>{accounts.length} Total</Text>
+        {/* ACCOUNTS SECTION */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>ACCOUNTS</Text>
+          <Text style={styles.sectionBadge}>{accounts.length} total</Text>
         </View>
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.accountsScroll}
-          contentContainerStyle={{ paddingRight: 20 }}
+          contentContainerStyle={styles.accountsScroll}
         >
           {accounts.map((acc) => (
             <View key={acc.id} style={styles.accountCard}>
-              <View style={styles.accountTopRow}>
-                <View style={[styles.accountIcon, { backgroundColor: `${acc.color}25`, borderColor: `${acc.color}45` }]}>
-                  <Ionicons name={(acc.icon as any) || 'wallet-outline'} size={18} color={acc.color} />
+              <View style={styles.accountTop}>
+                <View
+                  style={[
+                    styles.accountIconBox,
+                    {
+                      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.2)' : 'rgba(0, 122, 255, 0.12)',
+                    },
+                  ]}
+                >
+                  <Ionicons name="wallet-outline" size={18} color={theme.colors.primary} />
                 </View>
-                <View style={[styles.accountTypeBadge, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
-                  <Text style={styles.accountTypeText}>{acc.type}</Text>
+                <View style={styles.accountTypePill}>
+                  <Text style={styles.accountTypePillText}>{acc.type}</Text>
                 </View>
               </View>
 
@@ -266,409 +276,388 @@ export const HomeScreen: React.FC = () => {
           ))}
         </ScrollView>
 
-        {/* Activities for the selected month */}
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="receipt-outline" size={18} color={theme.colors.textSecondary} />
-            <Text style={styles.sectionTitle}>Monthly Activity</Text>
-          </View>
-          <View style={styles.entriesBadge}>
-            <Text style={styles.entriesBadgeText}>{monthlyTransactions.length} entries</Text>
-          </View>
+        {/* RECENT ACTIVITY SECTION */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>
+            ACTIVITY • {formatYearMonth(selectedYM)}
+          </Text>
+          <Text style={styles.sectionBadge}>
+            {monthlyTransactions.length} {monthlyTransactions.length === 1 ? 'entry' : 'entries'}
+          </Text>
         </View>
 
         {monthlyTransactions.length === 0 ? (
-          <View style={styles.emptyState}>
+          <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="calendar-clear-outline" size={36} color={theme.colors.textTertiary} />
+              <Ionicons name="receipt-outline" size={32} color={theme.colors.textTertiary} />
             </View>
-            <Text style={styles.emptyTitle}>No records in {formatYearMonth(selectedYM)}</Text>
+            <Text style={styles.emptyTitle}>No entries for {formatYearMonth(selectedYM)}</Text>
             <Text style={styles.emptySubtitle}>
-              Tap the buttons above to log your first transaction for this month!
+              Tap the buttons above to log your expenses, income, or transfers.
             </Text>
+            <TouchableOpacity
+              style={styles.emptyAddBtn}
+              onPress={() => openAddModal('expense')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={styles.emptyAddBtnText}>Add First Transaction</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          monthlyTransactions.map((tx) => (
-            <TransactionCard
-              key={tx.id}
-              transaction={tx}
-              accounts={accounts}
-              categories={categories}
-              onEdit={handleEditTx}
-              onDelete={deleteTransaction}
-            />
-          ))
+          <View style={styles.activityList}>
+            {monthlyTransactions.map((tx) => (
+              <TransactionCard
+                key={tx.id}
+                transaction={tx}
+                accounts={accounts}
+                categories={categories}
+                onEdit={handleEditTx}
+                onDelete={deleteTransaction}
+              />
+            ))}
+          </View>
         )}
-
-        <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Add / Edit Transaction Modal */}
+      {/* Screen-Specific Add Transaction Modal */}
       <AddTransactionModal
         visible={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setEditingTx(null);
-        }}
+        onClose={() => setModalVisible(false)}
         initialType={modalType}
-        editingTransaction={editingTx}
+        transactionToEdit={editingTx || undefined}
+        defaultDate={selectedYM + '-01'}
       />
 
-      {/* Month Calendar Picker Modal */}
+      {/* Interactive Calendar Month Picker Modal */}
       <CalendarMonthPickerModal
         visible={pickerModalVisible}
-        currentYearMonth={selectedYM}
-        onSelect={setSelectedYM}
+        selectedYearMonth={selectedYM}
+        onSelectYearMonth={setSelectedYM}
         onClose={() => setPickerModalVisible(false)}
       />
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 14,
-    backgroundColor: theme.colors.background,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.successLight,
-  },
-  statusPillText: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: theme.colors.text,
-    letterSpacing: -0.5,
-  },
-  headerAddBtn: {
-    backgroundColor: theme.colors.primary,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-  },
-  balanceCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.lg,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  balanceTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  currencyBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  currencyBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: theme.colors.primaryLight,
-    letterSpacing: 0.5,
-  },
-  eyeBtn: {
-    padding: 6,
-    borderRadius: theme.radii.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  balanceLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  balanceAmount: {
-    color: theme.colors.text,
-    fontSize: 36,
-    fontWeight: '800',
-    marginVertical: 6,
-    letterSpacing: -0.8,
-  },
-  ratioBarContainer: {
-    height: 4,
-    backgroundColor: theme.colors.dangerGlow,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 6,
-    marginBottom: 16,
-  },
-  ratioBarFill: {
-    height: '100%',
-    backgroundColor: theme.colors.successLight,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    marginBottom: 14,
-  },
-  summaryDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: theme.colors.border,
-  },
-  summaryItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  arrowCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryItemLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  summaryItemValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  savingsBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  savingsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  savingsBannerText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-  },
-  savingsBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radii.xs,
-    borderWidth: 1,
-  },
-  savingsBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    borderRadius: theme.radii.md,
-    gap: 6,
-    borderWidth: 1,
-  },
-  actionBtnIncome: {
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  actionBtnExpense: {
-    backgroundColor: 'rgba(244, 63, 94, 0.08)',
-    borderColor: 'rgba(244, 63, 94, 0.25)',
-  },
-  actionBtnTransfer: {
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-    borderColor: 'rgba(59, 130, 246, 0.25)',
-  },
-  actionIconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text,
-    letterSpacing: -0.2,
-  },
-  sectionCount: {
-    fontSize: 12,
-    color: theme.colors.textTertiary,
-    fontWeight: '600',
-  },
-  entriesBadge: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  entriesBadgeText: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  accountsScroll: {
-    marginBottom: 24,
-    marginHorizontal: -18,
-    paddingHorizontal: 18,
-  },
-  accountCard: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.md,
-    padding: 14,
-    marginRight: 10,
-    width: 145,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  accountTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  accountIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  accountTypeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  accountTypeText: {
-    fontSize: 10,
-    color: theme.colors.textTertiary,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  accountName: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  accountBalance: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: theme.colors.text,
-    letterSpacing: -0.3,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    backgroundColor: theme.colors.surfaceCard,
-    borderRadius: theme.radii.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  emptyIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    headerTitle: {
+      fontSize: 34,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.6,
+    },
+    headerAddBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...theme.shadows.glowPrimary,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingBottom: 36,
+    },
+    // Balance Card (Apple Wallet Inset Hero)
+    balanceCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.xl,
+      padding: 20,
+      marginTop: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    balanceTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    currencyBadge: {
+      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)',
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: theme.radii.sm,
+    },
+    currencyBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.primary,
+      letterSpacing: 0.5,
+    },
+    eyeBtn: {
+      padding: 6,
+      borderRadius: theme.radii.sm,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+    },
+    balanceLabel: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    balanceAmount: {
+      color: theme.colors.text,
+      fontSize: 36,
+      fontWeight: '700',
+      marginVertical: 4,
+      letterSpacing: -0.8,
+    },
+    ratioBarContainer: {
+      height: 4,
+      backgroundColor: isDark ? 'rgba(255, 69, 58, 0.25)' : 'rgba(255, 59, 48, 0.15)',
+      borderRadius: 2,
+      overflow: 'hidden',
+      marginTop: 4,
+      marginBottom: 14,
+    },
+    ratioBarFill: {
+      height: '100%',
+      backgroundColor: theme.colors.success,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+    },
+    summaryItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      gap: 10,
+    },
+    summaryDivider: {
+      width: StyleSheet.hairlineWidth,
+      height: 32,
+      backgroundColor: theme.colors.border,
+      marginHorizontal: 8,
+    },
+    arrowCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    summaryItemLabel: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      fontWeight: '500',
+    },
+    summaryItemValue: {
+      fontSize: 15,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      marginTop: 1,
+    },
+    savingsBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: theme.radii.md,
+      marginTop: 14,
+    },
+    savingsLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    savingsBannerText: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    savingsBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: theme.radii.sm,
+    },
+    savingsBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    // Quick Actions (Apple pill buttons)
+    quickActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 16,
+    },
+    actionBtn: {
+      flex: 1,
+      backgroundColor: theme.colors.surfaceCard,
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: theme.radii.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    actionIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
+    },
+    actionBtnLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.text,
+      letterSpacing: -0.1,
+    },
+    // Section Headers
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 24,
+      marginBottom: 10,
+      paddingHorizontal: 4,
+    },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    sectionBadge: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+    },
+    // Accounts Carousel
+    accountsScroll: {
+      paddingRight: 8,
+      gap: 12,
+    },
+    accountCard: {
+      width: 160,
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.lg,
+      padding: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    accountTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    accountIconBox: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountTypePill: {
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: theme.radii.xs,
+    },
+    accountTypePillText: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'capitalize',
+    },
+    accountName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    accountBalance: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.3,
+    },
+    // Activity List
+    activityList: {
+      marginTop: 2,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    emptyIconCircle: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: 18,
+    },
+    emptyAddBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: theme.radii.full,
+    },
+    emptyAddBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });

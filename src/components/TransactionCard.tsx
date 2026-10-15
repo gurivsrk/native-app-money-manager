@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction, Account, Category } from '../types';
 import { useBudget } from '../context/BudgetContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatDateWithWeekday } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 interface Props {
   transaction: Transaction;
@@ -22,6 +23,8 @@ export const TransactionCard: React.FC<Props> = ({
   onDelete,
 }) => {
   const { formatAmount } = useBudget();
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const getDetails = () => {
     if (transaction.type === 'transfer') {
@@ -72,12 +75,11 @@ export const TransactionCard: React.FC<Props> = ({
           style={[
             styles.iconWrap,
             {
-              backgroundColor: `${details.color}18`,
-              borderColor: `${details.color}35`,
+              backgroundColor: isDark ? `${details.color}25` : `${details.color}15`,
             },
           ]}
         >
-          <Ionicons name={details.icon as any} size={21} color={details.color} />
+          <Ionicons name={details.icon as any} size={20} color={details.color} />
         </View>
 
         <View style={styles.contentWrap}>
@@ -97,10 +99,10 @@ export const TransactionCard: React.FC<Props> = ({
               {
                 color:
                   details.amountPrefix === '+'
-                    ? theme.colors.successLight
+                    ? theme.colors.success
                     : details.amountPrefix === '-'
-                    ? theme.colors.dangerLight
-                    : theme.colors.primaryLight,
+                    ? theme.colors.text
+                    : theme.colors.primary,
               },
             ]}
           >
@@ -117,7 +119,7 @@ export const TransactionCard: React.FC<Props> = ({
             onPress={() => onEdit(transaction)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="pencil-outline" size={16} color={theme.colors.textSecondary} />
+            <Ionicons name="pencil" size={14} color={theme.colors.textTertiary} />
           </TouchableOpacity>
         )}
         {onDelete && (
@@ -126,7 +128,7 @@ export const TransactionCard: React.FC<Props> = ({
             onPress={() => onDelete(transaction.id)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
+            <Ionicons name="trash-outline" size={14} color={theme.colors.danger} />
           </TouchableOpacity>
         )}
       </View>
@@ -134,78 +136,74 @@ export const TransactionCard: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceCard,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: theme.radii.md,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  clickableArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 1,
-  },
-  contentWrap: {
-    flex: 1,
-    paddingRight: 6,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginBottom: 2,
-  },
-  dateText: {
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    fontWeight: '500',
-  },
-  rightWrap: {
-    alignItems: 'flex-end',
-    marginRight: 10,
-  },
-  amount: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderLeftWidth: 1,
-    borderLeftColor: theme.colors.border,
-    paddingLeft: 8,
-  },
-  iconBtn: {
-    padding: 5,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surfaceCard,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: theme.radii.lg,
+      marginBottom: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    clickableArea: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    iconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    contentWrap: {
+      flex: 1,
+      marginRight: 8,
+    },
+    title: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+      marginBottom: 2,
+    },
+    subtitle: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginBottom: 2,
+    },
+    dateText: {
+      fontSize: 11,
+      color: theme.colors.textTertiary,
+      fontWeight: '500',
+    },
+    rightWrap: {
+      alignItems: 'flex-end',
+      marginRight: 8,
+    },
+    amount: {
+      fontSize: 15,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: theme.colors.border,
+      paddingLeft: 8,
+    },
+    iconBtn: {
+      padding: 6,
+      borderRadius: theme.radii.sm,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+    },
+  });

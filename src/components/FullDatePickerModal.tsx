@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import dayjs, {
   MONTH_NAMES_FULL,
   formatDateWithWeekday,
 } from '../utils/dateUtils';
-import { theme } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { Theme } from '../constants/theme';
 
 interface Props {
   visible: boolean;
@@ -27,15 +28,17 @@ export const FullDatePickerModal: React.FC<Props> = ({
   onSelectDate,
   onClose,
 }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   const initial = dayjs(currentDate || undefined);
 
   const [year, setYear] = useState(initial.year());
   const [month, setMonth] = useState(initial.month() + 1); // 1-12
   const [selectedDay, setSelectedDay] = useState(initial.date());
 
-  const prevVisibleRef = React.useRef(false);
+  const prevVisibleRef = useRef(false);
 
-  // Sync state whenever modal freshly opens or currentDate prop changes
   useEffect(() => {
     const justOpened = !prevVisibleRef.current && visible;
     prevVisibleRef.current = visible;
@@ -48,7 +51,6 @@ export const FullDatePickerModal: React.FC<Props> = ({
     }
   }, [visible, currentDate]);
 
-  // Month navigation
   const handlePrevMonth = () => {
     if (month === 1) {
       setMonth(12);
@@ -67,12 +69,10 @@ export const FullDatePickerModal: React.FC<Props> = ({
     }
   };
 
-  // Days in month calculation via dayjs
   const monthStart = dayjs(`${year}-${String(month).padStart(2, '0')}-01`);
   const daysInCurrentMonth = monthStart.daysInMonth();
   const firstDayWeekday = monthStart.day(); // 0=Sun, 1=Mon, ..., 6=Sat
 
-  // Build grid of days
   const flatDays: (number | null)[] = [];
   for (let i = 0; i < firstDayWeekday; i++) {
     flatDays.push(null);
@@ -81,7 +81,6 @@ export const FullDatePickerModal: React.FC<Props> = ({
     flatDays.push(d);
   }
 
-  // Group into exact 7-day rows to strictly avoid any flex-wrap pixel wrapping bugs
   const weeks: (number | null)[][] = [];
   for (let i = 0; i < flatDays.length; i += 7) {
     const week = flatDays.slice(i, i + 7);
@@ -132,70 +131,56 @@ export const FullDatePickerModal: React.FC<Props> = ({
           <View style={styles.header}>
             <View>
               <Text style={styles.headerTitle}>Select Date</Text>
-              <Text style={styles.headerSubtitle}>
-                {previewFormatted}
-              </Text>
+              <Text style={styles.headerSubtitle}>{previewFormatted}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={20} color="#64748B" />
+              <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Month & Year Navigator */}
-          <View style={styles.navRow}>
-            <TouchableOpacity
-              style={styles.navBtn}
-              onPress={handlePrevMonth}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
+          <View style={styles.monthNavRow}>
+            <TouchableOpacity onPress={handlePrevMonth} style={styles.navArrowBtn}>
+              <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
             </TouchableOpacity>
-
             <Text style={styles.monthLabel}>
               {MONTH_NAMES_FULL[month - 1]} {year}
             </Text>
-
-            <TouchableOpacity
-              style={styles.navBtn}
-              onPress={handleNextMonth}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
+            <TouchableOpacity onPress={handleNextMonth} style={styles.navArrowBtn}>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
-          {/* Calendar Table Container */}
+          {/* Calendar Grid */}
           <View style={styles.calendarContainer}>
-            {/* Weekday Names Header: Exact 7 equal columns */}
             <View style={styles.weekdaysRow}>
-              {WEEKDAYS_SHORT.map((d, idx) => (
-                <View key={d} style={styles.dayCol}>
+              {WEEKDAYS_SHORT.map((wd, i) => (
+                <View key={i} style={styles.dayCol}>
                   <Text
                     style={[
                       styles.weekdayText,
-                      idx === 0 && styles.weekdaySunday, // Sunday hint
-                      idx === 6 && styles.weekdaySaturday, // Saturday hint
+                      i === 0 && styles.weekdaySunday,
+                      i === 6 && styles.weekdaySaturday,
                     ]}
                   >
-                    {d}
+                    {wd}
                   </Text>
                 </View>
               ))}
             </View>
 
-            {/* Weeks: Exact 7 cells per row */}
-            {weeks.map((week, weekIndex) => (
-              <View key={`week-${weekIndex}`} style={styles.weekRow}>
-                {week.map((day, dayIndex) => {
+            {weeks.map((week, wIdx) => (
+              <View key={wIdx} style={styles.weekRow}>
+                {week.map((day, dIdx) => {
                   if (day === null) {
-                    return <View key={`empty-${weekIndex}-${dayIndex}`} style={styles.dayCol} />;
+                    return <View key={dIdx} style={styles.dayCol} />;
                   }
 
                   const selected = isSelected(day);
                   const today = isToday(day);
 
                   return (
-                    <View key={`day-${day}`} style={styles.dayCol}>
+                    <View key={dIdx} style={styles.dayCol}>
                       <TouchableOpacity
                         style={[
                           styles.dayCell,
@@ -222,15 +207,15 @@ export const FullDatePickerModal: React.FC<Props> = ({
             ))}
           </View>
 
-          {/* Quick Actions Footer */}
+          {/* Footer Controls */}
           <View style={styles.footerRow}>
             <TouchableOpacity style={styles.todayBtn} onPress={handlePickToday}>
-              <Ionicons name="today-outline" size={16} color="#2563EB" />
-              <Text style={styles.todayBtnText}>Pick Today</Text>
+              <Ionicons name="today" size={14} color={theme.colors.primary} />
+              <Text style={styles.todayBtnText}>Today</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -239,164 +224,158 @@ export const FullDatePickerModal: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radii.lg,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: theme.colors.primaryLight,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  navBtn: {
-    padding: 6,
-    borderRadius: 8,
-  },
-  monthLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  calendarContainer: {
-    width: '100%',
-    marginBottom: 14,
-  },
-  weekdaysRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  dayCol: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekdayText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  weekdaySunday: {
-    color: theme.colors.dangerLight,
-  },
-  weekdaySaturday: {
-    color: theme.colors.primaryLight,
-  },
-  dayCell: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCellSelected: {
-    backgroundColor: theme.colors.primary,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  dayCellToday: {
-    borderWidth: 1.5,
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryGlow,
-  },
-  dayText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  dayTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  dayTextToday: {
-    color: theme.colors.primaryLight,
-    fontWeight: '700',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingTop: 14,
-  },
-  todayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: theme.colors.primaryGlow,
-    borderRadius: theme.radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  todayBtnText: {
-    color: theme.colors.primaryLight,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  cancelBtn: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  cancelBtnText: {
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});
+const createStyles = (theme: Theme, isDark: boolean) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: theme.colors.backdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 16,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radii.xl,
+      padding: 18,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      ...theme.shadows.card,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    headerTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.2,
+    },
+    headerSubtitle: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    closeBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthNavRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.md,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      marginBottom: 14,
+    },
+    navArrowBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    calendarContainer: {
+      width: '100%',
+      marginBottom: 12,
+    },
+    weekdaysRow: {
+      flexDirection: 'row',
+      marginBottom: 6,
+    },
+    weekRow: {
+      flexDirection: 'row',
+      marginBottom: 4,
+    },
+    dayCol: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    weekdayText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textTertiary,
+      textAlign: 'center',
+    },
+    weekdaySunday: {
+      color: theme.colors.danger,
+    },
+    weekdaySaturday: {
+      color: theme.colors.primary,
+    },
+    dayCell: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayCellSelected: {
+      backgroundColor: theme.colors.primary,
+    },
+    dayCellToday: {
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
+    },
+    dayText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.text,
+    },
+    dayTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    dayTextToday: {
+      color: theme.colors.primary,
+      fontWeight: '700',
+    },
+    footerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.border,
+      paddingTop: 12,
+    },
+    todayBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+      borderRadius: theme.radii.full,
+    },
+    todayBtnText: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    cancelBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+    },
+    cancelBtnText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  });
