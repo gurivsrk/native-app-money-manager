@@ -3,6 +3,9 @@ import { Account, Category, Transaction, MonthlySummary, Currency } from '../typ
 import { StorageService } from '../services/storage';
 import { DEFAULT_CURRENCIES } from '../constants/initialData';
 import { getCurrentYearMonthString } from '../utils/dateUtils';
+import { FirebaseService } from '../services/firebaseService';
+
+export type CloudSyncStatus = 'synced' | 'syncing' | 'offline' | 'error';
 
 interface BudgetContextType {
   accounts: Account[];
@@ -29,6 +32,13 @@ interface BudgetContextType {
   updateCurrencyRate: (code: string, newRate: number) => Promise<void>;
   addCustomCurrency: (currency: Currency) => Promise<void>;
   formatAmount: (usdBaseAmount: number) => string;
+  // Firebase Cloud Sync
+  cloudSyncStatus: CloudSyncStatus;
+  lastSyncTime: string | null;
+  syncWithCloud: () => Promise<{ success: boolean; message: string }>;
+  uploadToCloud: () => Promise<{ success: boolean; message: string }>;
+  restoreFromCloud: () => Promise<{ success: boolean; message: string }>;
+  testCloudConnection: () => Promise<{ success: boolean; message: string }>;
 }
 
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
@@ -41,9 +51,14 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeCurrencyCode, setActiveCode] = useState<string>('USD');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Cloud Sync state
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('offline');
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
   const loadData = async () => {
     try {
       setIsLoading(true);
+      // 1. Instant local load (0ms delay for UI)
       const [loadedAccs, loadedCats, loadedTxs, loadedCurrs, loadedActiveCode] = await Promise.all([
         StorageService.getAccounts(),
         StorageService.getCategories(),
@@ -56,13 +71,85 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setTransactions(loadedTxs);
       setCurrencies(loadedCurrs);
       setActiveCode(loadedActiveCode);
+
+      // 2. Trigger asynchronous background sync with Firebase
+      performAutoCloudSync(loadedAccs, loadedCats, loadedTxs, loadedCurrs, loadedActiveCode);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const performAutoCloudSync = async (
+    localAccs: Account[],
+    localCats: Category[],
+    localTxs: Transaction[],
+    localCurrs: Currency[],
+    localActiveCode: string
+  ) => {
+    try {
+      setCloudSyncStatus('syncing');
+      const cloudData = await FirebaseService.fetchCloudData();
+
+      if (!cloudData) {
+        setCloudSyncStatus('offline');
+        return;
+      }
+
+      const hasCloudData =
+        cloudData.transactions.length > 0 ||
+        cloudData.accounts.length > 0 ||
+        cloudData.categories.length > 0;
+
+      if (!hasCloudData) {
+        // First-time connection to a blank Firebase project: auto-seed local data to cloud
+        await FirebaseService.backupAllToCloud({
+          accounts: localAccs,
+          categories: localCats,
+          transactions: localTxs,
+          currencies: localCurrs,
+          activeCurrencyCode: localActiveCode,
+        });
+        setCloudSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else {
+        // Merge cloud data with local data (preferring cloud IDs)
+        const mergedTxsMap = new Map<string, Transaction>();
+        localTxs.forEach((t) => mergedTxsMap.set(t.id, t));
+        cloudData.transactions.forEach((t) => mergedTxsMap.set(t.id, t));
+        const mergedTxs = Array.from(mergedTxsMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+
+        const mergedAccsMap = new Map<string, Account>();
+        localAccs.forEach((a) => mergedAccsMap.set(a.id, a));
+        cloudData.accounts.forEach((a) => mergedAccsMap.set(a.id, a));
+        const mergedAccs = Array.from(mergedAccsMap.values());
+
+        const mergedCatsMap = new Map<string, Category>();
+        localCats.forEach((c) => mergedCatsMap.set(c.id, c));
+        cloudData.categories.forEach((c) => mergedCatsMap.set(c.id, c));
+        const mergedCats = Array.from(mergedCatsMap.values());
+
+        setTransactions(mergedTxs);
+        setAccounts(mergedAccs);
+        setCategories(mergedCats);
+
+        await Promise.all([
+          StorageService.saveTransactions(mergedTxs),
+          StorageService.saveAccounts(mergedAccs),
+          StorageService.saveCategories(mergedCats),
+        ]);
+
+        setCloudSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
+    } catch (err) {
+      console.warn('Auto cloud sync error:', err);
+      setCloudSyncStatus('offline');
+    }
+  };
+
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const activeCurrency: Currency =
@@ -71,18 +158,21 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setActiveCurrencyCode = async (code: string) => {
     setActiveCode(code);
     await StorageService.saveActiveCurrencyCode(code);
+    FirebaseService.saveCurrencySettings(currencies, code).catch(() => {});
   };
 
   const updateCurrencyRate = async (code: string, newRate: number) => {
     const updated = currencies.map((c) => (c.code === code ? { ...c, rate: newRate } : c));
     setCurrencies(updated);
     await StorageService.saveCurrencies(updated);
+    FirebaseService.saveCurrencySettings(updated, activeCurrencyCode).catch(() => {});
   };
 
   const addCustomCurrency = async (curr: Currency) => {
     const updated = [...currencies.filter((c) => c.code !== curr.code), curr];
     setCurrencies(updated);
     await StorageService.saveCurrencies(updated);
+    FirebaseService.saveCurrencySettings(updated, activeCurrencyCode).catch(() => {});
   };
 
   const formatAmount = (baseAmount: number): string => {
@@ -115,8 +205,8 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  // Transactions CRUD with live Firebase sync
   const addTransaction = async (txData: Omit<Transaction, 'id' | 'createdAt'>) => {
-    // txData.amount comes in current active currency units -> convert to base USD
     const baseAmount = txData.amount / (activeCurrency.rate || 1.0);
 
     const newTx: Transaction = {
@@ -136,13 +226,26 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       StorageService.saveAccounts(updatedAccounts),
       StorageService.saveTransactions(updatedTransactions),
     ]);
+
+    // Live sync to Firebase in background
+    FirebaseService.saveTransaction(newTx).catch(console.warn);
+    // Also sync affected accounts
+    updatedAccounts.forEach((acc) => {
+      if (
+        acc.id === newTx.accountId ||
+        acc.id === newTx.fromAccountId ||
+        acc.id === newTx.toAccountId
+      ) {
+        FirebaseService.saveAccount(acc).catch(console.warn);
+      }
+    });
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
   const updateTransaction = async (id: string, updatedTxData: Omit<Transaction, 'id' | 'createdAt'>) => {
     const oldTx = transactions.find((t) => t.id === id);
     if (!oldTx) return;
 
-    // Convert new amount to base USD
     const baseAmount = updatedTxData.amount / (activeCurrency.rate || 1.0);
 
     const editedTx: Transaction = {
@@ -152,7 +255,6 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: oldTx.createdAt,
     };
 
-    // Revert old transaction effect, then apply new transaction effect
     let updatedAccounts = applyTxToBalances(accounts, oldTx, -1);
     updatedAccounts = applyTxToBalances(updatedAccounts, editedTx, 1);
 
@@ -165,13 +267,19 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       StorageService.saveAccounts(updatedAccounts),
       StorageService.saveTransactions(updatedTransactions),
     ]);
+
+    // Live sync to Firebase in background
+    FirebaseService.saveTransaction(editedTx).catch(console.warn);
+    updatedAccounts.forEach((acc) => {
+      FirebaseService.saveAccount(acc).catch(console.warn);
+    });
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
   const deleteTransaction = async (id: string) => {
     const targetTx = transactions.find((t) => t.id === id);
     if (!targetTx) return;
 
-    // Revert effect on account balances
     const updatedAccounts = applyTxToBalances(accounts, targetTx, -1);
     const updatedTransactions = transactions.filter((t) => t.id !== id);
 
@@ -182,9 +290,16 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       StorageService.saveAccounts(updatedAccounts),
       StorageService.saveTransactions(updatedTransactions),
     ]);
+
+    // Live sync delete to Firebase in background
+    FirebaseService.deleteTransaction(id).catch(console.warn);
+    updatedAccounts.forEach((acc) => {
+      FirebaseService.saveAccount(acc).catch(console.warn);
+    });
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
-  // Accounts CRUD
+  // Accounts CRUD with live Firebase sync
   const addAccount = async (accData: Omit<Account, 'id'>): Promise<Account> => {
     const baseBalance = accData.balance / (activeCurrency.rate || 1.0);
     const newAccount: Account = {
@@ -195,6 +310,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatedAccounts = [...accounts, newAccount];
     setAccounts(updatedAccounts);
     await StorageService.saveAccounts(updatedAccounts);
+
+    FirebaseService.saveAccount(newAccount).catch(console.warn);
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     return newAccount;
   };
 
@@ -213,15 +331,24 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     setAccounts(updatedAccounts);
     await StorageService.saveAccounts(updatedAccounts);
+
+    const changedAcc = updatedAccounts.find((a) => a.id === id);
+    if (changedAcc) {
+      FirebaseService.saveAccount(changedAcc).catch(console.warn);
+    }
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
   const deleteAccount = async (id: string) => {
     const updatedAccounts = accounts.filter((a) => a.id !== id);
     setAccounts(updatedAccounts);
     await StorageService.saveAccounts(updatedAccounts);
+
+    FirebaseService.deleteAccount(id).catch(console.warn);
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
-  // Categories CRUD
+  // Categories CRUD with live Firebase sync
   const addCategory = async (catData: Omit<Category, 'id'>): Promise<Category> => {
     const newCategory: Category = {
       ...catData,
@@ -230,6 +357,9 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatedCategories = [...categories, newCategory];
     setCategories(updatedCategories);
     await StorageService.saveCategories(updatedCategories);
+
+    FirebaseService.saveCategory(newCategory).catch(console.warn);
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     return newCategory;
   };
 
@@ -239,16 +369,25 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
     setCategories(updatedCategories);
     await StorageService.saveCategories(updatedCategories);
+
+    const changedCat = updatedCategories.find((c) => c.id === id);
+    if (changedCat) {
+      FirebaseService.saveCategory(changedCat).catch(console.warn);
+    }
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
   const deleteCategory = async (id: string) => {
     const updatedCategories = categories.filter((c) => c.id !== id);
     setCategories(updatedCategories);
     await StorageService.saveCategories(updatedCategories);
+
+    FirebaseService.deleteCategory(id).catch(console.warn);
+    setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
   const getMonthlySummary = (yearMonth?: string): MonthlySummary => {
-    const currentYM = yearMonth || getCurrentYearMonthString(); // 'YYYY-MM'
+    const currentYM = yearMonth || getCurrentYearMonthString();
 
     let totalIncome = 0;
     let totalExpense = 0;
@@ -266,7 +405,110 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const netSavings = totalIncome - totalExpense;
     const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
-    return { totalIncome, totalExpense, netSavings, savingsRate };
+    return {
+      totalIncome,
+      totalExpense,
+      netSavings,
+      savingsRate,
+    };
+  };
+
+  // Explicit Cloud Sync operations
+  const syncWithCloud = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      setCloudSyncStatus('syncing');
+      await performAutoCloudSync(accounts, categories, transactions, currencies, activeCurrencyCode);
+      return {
+        success: true,
+        message: 'Successfully synchronized with Firebase Firestore cloud!',
+      };
+    } catch (err: any) {
+      setCloudSyncStatus('error');
+      return {
+        success: false,
+        message: err?.message || 'Sync failed. Please check internet and Firestore rules.',
+      };
+    }
+  };
+
+  const uploadToCloud = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      setCloudSyncStatus('syncing');
+      const res = await FirebaseService.backupAllToCloud({
+        accounts,
+        categories,
+        transactions,
+        currencies,
+        activeCurrencyCode,
+      });
+      if (res.success) {
+        setCloudSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else {
+        setCloudSyncStatus('error');
+      }
+      return res;
+    } catch (err: any) {
+      setCloudSyncStatus('error');
+      return {
+        success: false,
+        message: err?.message || 'Failed to upload to cloud.',
+      };
+    }
+  };
+
+  const restoreFromCloud = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      setCloudSyncStatus('syncing');
+      const cloudData = await FirebaseService.fetchCloudData();
+      if (!cloudData) {
+        setCloudSyncStatus('offline');
+        return {
+          success: false,
+          message: 'Unable to reach Firebase Firestore. Please check your connection.',
+        };
+      }
+
+      setAccounts(cloudData.accounts);
+      setCategories(cloudData.categories);
+      setTransactions(cloudData.transactions);
+      if (cloudData.currencies && cloudData.currencies.length > 0) {
+        setCurrencies(cloudData.currencies);
+      }
+      if (cloudData.activeCurrencyCode) {
+        setActiveCode(cloudData.activeCurrencyCode);
+      }
+
+      await Promise.all([
+        StorageService.saveAccounts(cloudData.accounts),
+        StorageService.saveCategories(cloudData.categories),
+        StorageService.saveTransactions(cloudData.transactions),
+      ]);
+
+      setCloudSyncStatus('synced');
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      return {
+        success: true,
+        message: `Restored ${cloudData.transactions.length} transactions, ${cloudData.accounts.length} accounts, and ${cloudData.categories.length} categories from Firestore.`,
+      };
+    } catch (err: any) {
+      setCloudSyncStatus('error');
+      return {
+        success: false,
+        message: err?.message || 'Failed to restore from cloud.',
+      };
+    }
+  };
+
+  const testCloudConnection = async (): Promise<{ success: boolean; message: string }> => {
+    const res = await FirebaseService.testConnection();
+    if (res.success) {
+      setCloudSyncStatus('synced');
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } else {
+      setCloudSyncStatus('error');
+    }
+    return res;
   };
 
   return (
@@ -292,6 +534,12 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateCurrencyRate,
         addCustomCurrency,
         formatAmount,
+        cloudSyncStatus,
+        lastSyncTime,
+        syncWithCloud,
+        uploadToCloud,
+        restoreFromCloud,
+        testCloudConnection,
       }}
     >
       {children}
@@ -299,7 +547,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-export const useBudget = () => {
+export const useBudget = (): BudgetContextType => {
   const context = useContext(BudgetContext);
   if (!context) {
     throw new Error('useBudget must be used within a BudgetProvider');

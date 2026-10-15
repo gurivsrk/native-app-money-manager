@@ -12,6 +12,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
@@ -25,7 +26,16 @@ export const SettingsScreen: React.FC = () => {
     setActiveCurrencyCode,
     updateCurrencyRate,
     addCustomCurrency,
+    cloudSyncStatus,
+    lastSyncTime,
+    syncWithCloud,
+    uploadToCloud,
+    restoreFromCloud,
+    testCloudConnection,
   } = useBudget();
+
+  // Cloud Sync state
+  const [syncInProgress, setSyncInProgress] = useState(false);
 
   // Dropdown select modal state
   const [selectModalVisible, setSelectModalVisible] = useState(false);
@@ -88,10 +98,82 @@ export const SettingsScreen: React.FC = () => {
     setShowAddModal(false);
   };
 
+  const handleTestConnection = async () => {
+    setSyncInProgress(true);
+    try {
+      const res = await testCloudConnection();
+      if (res.success) {
+        Alert.alert('Cloud Connected', res.message);
+      } else {
+        Alert.alert(
+          'Firebase Setup Required',
+          `${res.message}\n\nTip: In the Firebase Console (console.firebase.google.com):\n1. Go to project: "${firebaseConfig.projectId}"\n2. Open "Build" > "Firestore Database"\n3. Click "Create Database" (default mode, test rules)\n4. Rules must allow: "allow read, write: if true;"`
+        );
+      }
+    } finally {
+      setSyncInProgress(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setSyncInProgress(true);
+    try {
+      const res = await syncWithCloud();
+      Alert.alert(res.success ? 'Sync Successful' : 'Sync Status', res.message);
+    } finally {
+      setSyncInProgress(false);
+    }
+  };
+
+  const handleBackupToCloud = () => {
+    Alert.alert(
+      'Backup to Cloud',
+      'Upload all local transactions, accounts, categories, and currency settings to your live Firestore database.\n\nProceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Upload',
+          onPress: async () => {
+            setSyncInProgress(true);
+            try {
+              const res = await uploadToCloud();
+              Alert.alert(res.success ? 'Backup Successful' : 'Backup Status', res.message);
+            } finally {
+              setSyncInProgress(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRestoreFromCloud = () => {
+    Alert.alert(
+      'Restore from Cloud',
+      'Download all data from Firestore into your local device. Any local changes not backed up will be overwritten.\n\nProceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setSyncInProgress(true);
+            try {
+              const res = await restoreFromCloud();
+              Alert.alert(res.success ? 'Restore Successful' : 'Restore Status', res.message);
+            } finally {
+              setSyncInProgress(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const showFirebaseInfo = () => {
     Alert.alert(
       'Firebase Configuration',
-      `Firebase is initialized in src/config/firebase.ts.\n\nProject ID: ${firebaseConfig.projectId}\n\nTo connect your live Firebase project, replace the keys in src/config/firebase.ts.`
+      `Firebase is configured and live!\n\n• Project: ${firebaseConfig.projectId}\n• Auth Domain: ${firebaseConfig.authDomain}\n• App ID: ${firebaseConfig.appId}\n\nArchitecture: Offline-first with auto-sync on change.`
     );
   };
 
@@ -175,18 +257,125 @@ export const SettingsScreen: React.FC = () => {
 
         {/* Firebase Cloud Sync Card */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Cloud Synchronization</Text>
-        <TouchableOpacity style={styles.syncCard} onPress={showFirebaseInfo}>
+        <View style={styles.syncCard}>
           <View style={styles.syncHeader}>
             <View style={styles.firebaseLogoWrap}>
-              <Ionicons name="cloud-upload-outline" size={24} color="#F59E0B" />
+              <Ionicons name="logo-firebase" size={24} color="#F59E0B" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.syncTitle}>Firebase Firestore Sync</Text>
-              <Text style={styles.syncSub}>Automatic cloud sync & cross-device backup</Text>
+              <View style={styles.syncTitleRow}>
+                <Text style={styles.syncTitle}>Firebase Firestore</Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    cloudSyncStatus === 'synced' && styles.statusBadgeSynced,
+                    cloudSyncStatus === 'syncing' && styles.statusBadgeSyncing,
+                    cloudSyncStatus === 'error' && styles.statusBadgeError,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusDot,
+                      cloudSyncStatus === 'synced' && styles.statusDotSynced,
+                      cloudSyncStatus === 'syncing' && styles.statusDotSyncing,
+                      cloudSyncStatus === 'error' && styles.statusDotError,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      cloudSyncStatus === 'synced' && styles.statusTextSynced,
+                      cloudSyncStatus === 'syncing' && styles.statusTextSyncing,
+                      cloudSyncStatus === 'error' && styles.statusTextError,
+                    ]}
+                  >
+                    {cloudSyncStatus === 'synced'
+                      ? 'Live & Synced'
+                      : cloudSyncStatus === 'syncing'
+                      ? 'Syncing...'
+                      : cloudSyncStatus === 'error'
+                      ? 'Needs Setup'
+                      : 'Offline'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.syncSub}>Project: {firebaseConfig.projectId}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+            <TouchableOpacity onPress={showFirebaseInfo} style={styles.syncInfoBtn}>
+              <Ionicons name="information-circle-outline" size={22} color="#64748B" />
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+
+          {/* Sync status metadata row */}
+          <View style={styles.syncMetaRow}>
+            <Ionicons name="time-outline" size={14} color="#64748B" />
+            <Text style={styles.syncMetaText}>
+              Last Synced:{' '}
+              {lastSyncTime
+                ? new Date(lastSyncTime).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })
+                : 'Pending sync'}
+            </Text>
+          </View>
+
+          {/* Quick Action Buttons */}
+          <View style={styles.syncActionGrid}>
+            <TouchableOpacity
+              style={[styles.syncActionButton, styles.syncPrimaryBtn]}
+              onPress={handleSyncNow}
+              disabled={syncInProgress}
+            >
+              {syncInProgress ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.syncPrimaryBtnText}>Sync Now</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.syncActionButton, styles.syncSecondaryBtn]}
+              onPress={handleTestConnection}
+              disabled={syncInProgress}
+            >
+              <Ionicons name="wifi-outline" size={16} color="#2563EB" />
+              <Text style={styles.syncSecondaryBtnText}>Test Conn</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.syncActionGrid, { marginTop: 8 }]}>
+            <TouchableOpacity
+              style={[styles.syncActionButton, styles.syncOutlineBtn]}
+              onPress={handleBackupToCloud}
+              disabled={syncInProgress}
+            >
+              <Ionicons name="cloud-upload-outline" size={16} color="#475569" />
+              <Text style={styles.syncOutlineBtnText}>Backup to Cloud</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.syncActionButton, styles.syncOutlineBtn]}
+              onPress={handleRestoreFromCloud}
+              disabled={syncInProgress}
+            >
+              <Ionicons name="cloud-download-outline" size={16} color="#475569" />
+              <Text style={styles.syncOutlineBtnText}>Restore</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Offline-First notice */}
+          <View style={styles.syncNotice}>
+            <Ionicons name="shield-checkmark-outline" size={15} color="#10B981" />
+            <Text style={styles.syncNoticeText}>
+              Offline-first: changes save instantly locally and sync to Firebase whenever online.
+            </Text>
+          </View>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -610,6 +799,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  syncTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 6,
+  },
   firebaseLogoWrap: {
     width: 44,
     height: 44,
@@ -617,7 +812,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   syncTitle: {
     fontSize: 15,
@@ -625,9 +820,132 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   syncSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748B',
     marginTop: 2,
+  },
+  syncInfoBtn: {
+    padding: 6,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  statusBadgeSynced: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusBadgeSyncing: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusBadgeError: {
+    backgroundColor: '#FEE2E2',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94A3B8',
+    marginRight: 5,
+  },
+  statusDotSynced: {
+    backgroundColor: '#16A34A',
+  },
+  statusDotSyncing: {
+    backgroundColor: '#D97706',
+  },
+  statusDotError: {
+    backgroundColor: '#DC2626',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  statusTextSynced: {
+    color: '#15803D',
+  },
+  statusTextSyncing: {
+    color: '#B45309',
+  },
+  statusTextError: {
+    color: '#B91C1C',
+  },
+  syncMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  syncMetaText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  syncActionGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  syncActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  syncPrimaryBtn: {
+    backgroundColor: '#2563EB',
+  },
+  syncPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  syncSecondaryBtn: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  syncSecondaryBtnText: {
+    color: '#1D4ED8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  syncOutlineBtn: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  syncOutlineBtnText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  syncNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    backgroundColor: '#F0FDF4',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  syncNoticeText: {
+    fontSize: 11,
+    color: '#166534',
+    flex: 1,
+    lineHeight: 15,
   },
   modalOverlay: {
     flex: 1,
