@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
 import { Account, Transaction, TransactionType } from '../types';
 import { FullDatePickerModal } from './FullDatePickerModal';
+import { getTodayDateString, formatDateWithWeekday } from '../utils/dateUtils';
 
 const PRESET_ICONS = [
   'cart-outline',
@@ -74,7 +75,7 @@ export const AddTransactionModal: React.FC<Props> = ({
   const [type, setType] = useState<TransactionType>(initialType);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().substring(0, 10));
+  const [date, setDate] = useState(getTodayDateString());
 
   // Single Account for Income & Expense
   const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id || '');
@@ -132,7 +133,7 @@ export const AddTransactionModal: React.FC<Props> = ({
         setType(initialType);
         setAmount('');
         setNote('');
-        setDate(new Date().toISOString().substring(0, 10));
+        setDate(getTodayDateString());
         setSelectedAccountId(accounts[0]?.id || '');
         setSelectedCategoryId('');
         setFromAccountId(accounts[0]?.id || '');
@@ -407,7 +408,7 @@ export const AddTransactionModal: React.FC<Props> = ({
                 <Text style={styles.label}>Date</Text>
                 <TouchableOpacity
                   style={styles.addQuickLink}
-                  onPress={() => setDate(new Date().toISOString().substring(0, 10))}
+                  onPress={() => setDate(getTodayDateString())}
                 >
                   <Ionicons name="today-outline" size={15} color="#3B82F6" />
                   <Text style={styles.addQuickLinkText}>Today</Text>
@@ -424,8 +425,8 @@ export const AddTransactionModal: React.FC<Props> = ({
                     <Ionicons name="calendar" size={18} color="#2563EB" />
                   </View>
                   <View>
-                    <Text style={styles.datePickerSelectedText}>{date}</Text>
-                    <Text style={styles.datePickerSubText}>Tap to pick from calendar</Text>
+                    <Text style={styles.datePickerSelectedText}>{formatDateWithWeekday(date)}</Text>
+                    <Text style={styles.datePickerSubText}>{date} • Tap to change date</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#94A3B8" />

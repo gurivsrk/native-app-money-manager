@@ -14,22 +14,41 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
 import { MonthCalendarBar } from '../components/MonthCalendarBar';
 import { CalendarMonthPickerModal } from '../components/CalendarMonthPickerModal';
+import { ReportCharts } from '../components/ReportCharts';
+import {
+  CategoryTransactionsModal,
+  CategoryModalData,
+} from '../components/CategoryTransactionsModal';
+import { AddTransactionModal } from '../components/AddTransactionModal';
+import { Transaction } from '../types';
+import dayjs, { getCurrentYearMonthString, formatYearMonth } from '../utils/dateUtils';
 
 export const ReportsScreen: React.FC = () => {
-  const { transactions, categories, accounts, formatAmount, activeCurrency } = useBudget();
+  const {
+    transactions,
+    categories,
+    accounts,
+    formatAmount,
+    activeCurrency,
+    deleteTransaction,
+  } = useBudget();
 
   // Mode: 'monthly' | 'yearly'
   const [reportMode, setReportMode] = useState<'monthly' | 'yearly'>('monthly');
 
   // Selected Month ('YYYY-MM')
-  const [selectedYM, setSelectedYM] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedYM, setSelectedYM] = useState(() => getCurrentYearMonthString());
   const [pickerVisible, setPickerVisible] = useState(false);
 
   // Selected Year ('YYYY')
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(() => dayjs().year());
+
+  // Category drilldown modal state
+  const [selectedCategory, setSelectedCategory] = useState<CategoryModalData | null>(null);
+
+  // Transaction editing state
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   // Filter transactions based on reportMode
   const filteredTxs = transactions.filter((t) => {
@@ -60,7 +79,7 @@ export const ReportsScreen: React.FC = () => {
     }
   });
 
-  const topCategories = Object.keys(catTotals)
+  const topCategories: CategoryModalData[] = Object.keys(catTotals)
     .map((catId) => {
       const cat = categories.find((c) => c.id === catId);
       const amount = catTotals[catId];
@@ -72,16 +91,20 @@ export const ReportsScreen: React.FC = () => {
         icon: (cat?.icon as any) || 'pricetag',
         amount,
         percent,
+        type: 'expense' as const,
       };
     })
     .sort((a, b) => b.amount - a.amount);
 
+  const periodLabel =
+    reportMode === 'monthly' ? formatYearMonth(selectedYM) : `Annual ${selectedYear}`;
+
   // Export / Share report summary
   const handleShareReport = async () => {
-    const periodLabel =
+    const reportTitle =
       reportMode === 'monthly' ? `Monthly Report (${selectedYM})` : `Annual Report (${selectedYear})`;
 
-    const reportContent = `📊 ${periodLabel}
+    const reportContent = `📊 ${reportTitle}
 💰 Net Worth Currency: ${activeCurrency.name} (${activeCurrency.code})
 -----------------------------------------
 📈 Total Income: ${formatAmount(totalIncome)}
@@ -104,12 +127,18 @@ Generated with Money Manager App`;
       } else {
         await Share.share({
           message: reportContent,
-          title: periodLabel,
+          title: reportTitle,
         });
       }
     } catch {
       // Ignored
     }
+  };
+
+  const handleEditTx = (tx: Transaction) => {
+    setSelectedCategory(null);
+    setEditingTx(tx);
+    setEditModalVisible(true);
   };
 
   return (
@@ -122,7 +151,7 @@ Generated with Money Manager App`;
           <Text style={styles.headerSubtitle}>Audit & Statements</Text>
           <Text style={styles.headerTitle}>Financial Reports</Text>
         </View>
-        <TouchableOpacity style={styles.shareBtn} onPress={handleShareReport}>
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShareReport} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -171,6 +200,7 @@ Generated with Money Manager App`;
             <TouchableOpacity
               style={styles.yearNavBtn}
               onPress={() => setSelectedYear(selectedYear - 1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="chevron-back" size={20} color="#94A3B8" />
             </TouchableOpacity>
@@ -178,6 +208,7 @@ Generated with Money Manager App`;
             <TouchableOpacity
               style={styles.yearNavBtn}
               onPress={() => setSelectedYear(selectedYear + 1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
             </TouchableOpacity>
@@ -190,7 +221,7 @@ Generated with Money Manager App`;
           <Text style={styles.statementPeriod}>
             Period:{' '}
             <Text style={{ fontWeight: '700', color: '#FFFFFF' }}>
-              {reportMode === 'monthly' ? selectedYM : selectedYear}
+              {periodLabel}
             </Text>
           </Text>
 
@@ -239,8 +270,25 @@ Generated with Money Manager App`;
           </View>
         </View>
 
-        {/* Top Spending Categories */}
-        <Text style={styles.sectionHeading}>Expenses by Category</Text>
+        {/* Visual Charts Section */}
+        <ReportCharts
+          reportMode={reportMode}
+          selectedYM={selectedYM}
+          selectedYear={selectedYear}
+          totalIncome={totalIncome}
+          totalExpense={totalExpense}
+          netSavings={netSavings}
+          categoriesData={topCategories}
+          transactions={filteredTxs}
+          onSelectCategory={(cat) => setSelectedCategory(cat)}
+        />
+
+        {/* Expenses by Category List with Drilldown */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeading}>Expenses by Category</Text>
+          <Text style={styles.sectionHint}>Tap to view entries</Text>
+        </View>
+
         {topCategories.length === 0 ? (
           <View style={styles.emptyBox}>
             <Ionicons name="documents-outline" size={42} color="#CBD5E1" />
@@ -248,9 +296,14 @@ Generated with Money Manager App`;
           </View>
         ) : (
           topCategories.map((cat) => (
-            <View key={cat.id} style={styles.reportCatRow}>
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.reportCatRow}
+              onPress={() => setSelectedCategory(cat)}
+              activeOpacity={0.7}
+            >
               <View style={[styles.catIconCircle, { backgroundColor: cat.color }]}>
-                <Ionicons name={cat.icon} size={18} color="#FFFFFF" />
+                <Ionicons name={cat.icon as any} size={18} color="#FFFFFF" />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.catNameRow}>
@@ -259,12 +312,15 @@ Generated with Money Manager App`;
                 </View>
                 <View style={styles.barTrack}>
                   <View
-                    style={[styles.barFill, { width: `${cat.percent}%`, backgroundColor: cat.color }]}
+                    style={[styles.barFill, { width: `${cat.percent}%` as const, backgroundColor: cat.color }]}
                   />
                 </View>
               </View>
-              <Text style={styles.catPercentBadge}>{cat.percent}%</Text>
-            </View>
+              <View style={styles.catRightInfo}>
+                <Text style={styles.catPercentBadge}>{cat.percent}%</Text>
+                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+              </View>
+            </TouchableOpacity>
           ))
         )}
 
@@ -291,6 +347,29 @@ Generated with Money Manager App`;
         currentYearMonth={selectedYM}
         onSelect={setSelectedYM}
         onClose={() => setPickerVisible(false)}
+      />
+
+      {/* Category Drilldown Modal */}
+      <CategoryTransactionsModal
+        visible={!!selectedCategory}
+        onClose={() => setSelectedCategory(null)}
+        category={selectedCategory}
+        periodLabel={periodLabel}
+        transactions={filteredTxs}
+        accounts={accounts}
+        onEditTransaction={handleEditTx}
+        onDeleteTransaction={deleteTransaction}
+      />
+
+      {/* Edit Transaction Modal */}
+      <AddTransactionModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setEditingTx(null);
+        }}
+        initialType={editingTx?.type || 'expense'}
+        editingTransaction={editingTx}
       />
     </SafeAreaView>
   );
@@ -322,12 +401,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   shareBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#3B82F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   scrollContent: {
     backgroundColor: '#F8FAFC',
@@ -349,12 +425,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     paddingVertical: 10,
     borderRadius: 10,
-    gap: 6,
   },
   modeBtnActive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#3B82F6',
   },
   modeText: {
     fontSize: 13,
@@ -371,29 +447,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E293B',
     borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#334155',
   },
   yearNavBtn: {
-    padding: 8,
-    borderRadius: 10,
+    padding: 6,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   yearTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   statementCard: {
     backgroundColor: '#1E293B',
     borderRadius: 20,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   statementTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 4,
@@ -464,11 +542,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionHeading: {
     fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 12,
+  },
+  sectionHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
   reportCatRow: {
     flexDirection: 'row',
@@ -480,10 +568,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1F5F9',
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   catIconCircle: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -513,26 +606,45 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
+  catRightInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   catPercentBadge: {
     fontSize: 12,
     fontWeight: '700',
     color: '#64748B',
   },
-  accountPositionList: {
+  emptyBox: {
+    alignItems: 'center',
+    paddingVertical: 30,
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  emptyBoxText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#94A3B8',
+  },
+  accountPositionList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    gap: 8,
   },
   accPositionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    gap: 12,
+    borderBottomColor: '#F8FAFC',
   },
   accMiniIcon: {
     width: 28,
@@ -540,30 +652,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
   accPositionName: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#334155',
   },
   accPositionBal: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  emptyBox: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  emptyBoxText: {
     fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 8,
+    fontWeight: '700',
+    color: '#0F172A',
   },
 });

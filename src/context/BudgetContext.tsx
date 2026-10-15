@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Account, Category, Transaction, MonthlySummary, Currency } from '../types';
 import { StorageService } from '../services/storage';
 import { DEFAULT_CURRENCIES } from '../constants/initialData';
+import { getCurrentYearMonthString } from '../utils/dateUtils';
 
 interface BudgetContextType {
   accounts: Account[];
@@ -247,7 +248,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getMonthlySummary = (yearMonth?: string): MonthlySummary => {
-    const currentYM = yearMonth || new Date().toISOString().substring(0, 7); // 'YYYY-MM'
+    const currentYM = yearMonth || getCurrentYearMonthString(); // 'YYYY-MM'
 
     let totalIncome = 0;
     let totalExpense = 0;

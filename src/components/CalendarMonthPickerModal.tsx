@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import dayjs, { MONTH_NAMES_FULL } from '../utils/dateUtils';
 
 interface Props {
   visible: boolean;
@@ -9,24 +10,30 @@ interface Props {
   onClose: () => void;
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
 export const CalendarMonthPickerModal: React.FC<Props> = ({
   visible,
   currentYearMonth,
   onSelect,
   onClose,
 }) => {
+  const currentYmDate = dayjs(`${currentYearMonth}-01`);
+
   const [currentYear, setCurrentYear] = useState(() => {
-    const y = parseInt(currentYearMonth.split('-')[0], 10);
-    return isNaN(y) ? new Date().getFullYear() : y;
+    return currentYmDate.isValid() ? currentYmDate.year() : dayjs().year();
   });
 
-  const selectedMonth = parseInt(currentYearMonth.split('-')[1], 10);
-  const selectedYear = parseInt(currentYearMonth.split('-')[0], 10);
+  const prevVisibleRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!prevVisibleRef.current && visible) {
+      const parsed = dayjs(`${currentYearMonth}-01`);
+      setCurrentYear(parsed.isValid() ? parsed.year() : dayjs().year());
+    }
+    prevVisibleRef.current = visible;
+  }, [visible, currentYearMonth]);
+
+  const selectedMonth = currentYmDate.isValid() ? currentYmDate.month() + 1 : 1;
+  const selectedYear = currentYmDate.isValid() ? currentYmDate.year() : dayjs().year();
 
   const handleSelectMonth = (monthIndex: number) => {
     const mm = String(monthIndex + 1).padStart(2, '0');
@@ -35,13 +42,13 @@ export const CalendarMonthPickerModal: React.FC<Props> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Select Month & Year</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
@@ -50,14 +57,16 @@ export const CalendarMonthPickerModal: React.FC<Props> = ({
           <View style={styles.yearRow}>
             <TouchableOpacity
               style={styles.yearNavBtn}
-              onPress={() => setCurrentYear(currentYear - 1)}
+              onPress={() => setCurrentYear((y) => y - 1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="chevron-back" size={20} color="#0F172A" />
             </TouchableOpacity>
             <Text style={styles.yearText}>{currentYear}</Text>
             <TouchableOpacity
               style={styles.yearNavBtn}
-              onPress={() => setCurrentYear(currentYear + 1)}
+              onPress={() => setCurrentYear((y) => y + 1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="chevron-forward" size={20} color="#0F172A" />
             </TouchableOpacity>
@@ -65,10 +74,10 @@ export const CalendarMonthPickerModal: React.FC<Props> = ({
 
           {/* 12 Months Grid */}
           <View style={styles.monthsGrid}>
-            {MONTH_NAMES.map((name, idx) => {
+            {MONTH_NAMES_FULL.map((name, idx) => {
               const isSelected = currentYear === selectedYear && idx + 1 === selectedMonth;
               const isNow =
-                new Date().getFullYear() === currentYear && new Date().getMonth() === idx;
+                dayjs().year() === currentYear && dayjs().month() === idx;
 
               return (
                 <TouchableOpacity

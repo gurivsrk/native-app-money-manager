@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction, Account, Category } from '../types';
 import { useBudget } from '../context/BudgetContext';
+import { formatDateWithWeekday } from '../utils/dateUtils';
 
 interface Props {
   transaction: Transaction;
@@ -75,7 +76,7 @@ export const TransactionCard: React.FC<Props> = ({
           <Text style={styles.subtitle} numberOfLines={1}>
             {details.subtitle}
           </Text>
-          <Text style={styles.dateText}>{transaction.date}</Text>
+          <Text style={styles.dateText}>{formatDateWithWeekday(transaction.date)}</Text>
         </View>
 
         <View style={styles.rightWrap}>

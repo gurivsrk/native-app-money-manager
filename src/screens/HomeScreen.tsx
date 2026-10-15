@@ -15,6 +15,7 @@ import { AddTransactionModal } from '../components/AddTransactionModal';
 import { Transaction, TransactionType } from '../types';
 import { MonthCalendarBar } from '../components/MonthCalendarBar';
 import { CalendarMonthPickerModal } from '../components/CalendarMonthPickerModal';
+import { getCurrentYearMonthString, formatYearMonth } from '../utils/dateUtils';
 
 export const HomeScreen: React.FC = () => {
   const {
@@ -30,10 +31,7 @@ export const HomeScreen: React.FC = () => {
   const [modalType, setModalType] = useState<TransactionType>('expense');
 
   // Month Calendar selector state ('YYYY-MM')
-  const [selectedYM, setSelectedYM] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedYM, setSelectedYM] = useState(() => getCurrentYearMonthString());
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
 
   const summary = getMonthlySummary(selectedYM);
@@ -189,7 +187,7 @@ export const HomeScreen: React.FC = () => {
         {monthlyTransactions.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No records in {selectedYM}</Text>
+            <Text style={styles.emptyTitle}>No records in {formatYearMonth(selectedYM)}</Text>
             <Text style={styles.emptySubtitle}>
               {'Tap "+ Income", "- Expense", or "Transfer" above to add records for this month!'}
             </Text>

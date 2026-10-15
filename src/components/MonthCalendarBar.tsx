@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import dayjs from 'dayjs';
 
 interface Props {
   selectedYearMonth: string; // 'YYYY-MM'
@@ -13,44 +14,27 @@ export const MonthCalendarBar: React.FC<Props> = ({
   onChangeYearMonth,
   onOpenPicker,
 }) => {
-  const [yearStr, monthStr] = selectedYearMonth.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10); // 1-12
-
-  const dateObj = new Date(year, month - 1, 1);
-  const formattedDisplay = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const currentMonthDate = dayjs(`${selectedYearMonth}-01`);
+  const formattedDisplay = currentMonthDate.isValid()
+    ? currentMonthDate.format('MMMM YYYY')
+    : selectedYearMonth;
 
   const isCurrentMonth = () => {
-    const now = new Date();
-    return now.getFullYear() === year && now.getMonth() + 1 === month;
+    return currentMonthDate.isSame(dayjs(), 'month');
   };
 
   const handlePrev = () => {
-    let newYear = year;
-    let newMonth = month - 1;
-    if (newMonth < 1) {
-      newMonth = 12;
-      newYear -= 1;
-    }
-    const ym = `${newYear}-${String(newMonth).padStart(2, '0')}`;
-    onChangeYearMonth(ym);
+    const prev = currentMonthDate.subtract(1, 'month').format('YYYY-MM');
+    onChangeYearMonth(prev);
   };
 
   const handleNext = () => {
-    let newYear = year;
-    let newMonth = month + 1;
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear += 1;
-    }
-    const ym = `${newYear}-${String(newMonth).padStart(2, '0')}`;
-    onChangeYearMonth(ym);
+    const next = currentMonthDate.add(1, 'month').format('YYYY-MM');
+    onChangeYearMonth(next);
   };
 
   const handleResetToCurrent = () => {
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    onChangeYearMonth(ym);
+    onChangeYearMonth(dayjs().format('YYYY-MM'));
   };
 
   return (
