@@ -8,6 +8,8 @@ import {
   TextInput,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
@@ -311,7 +313,15 @@ export const AddTransactionModal: React.FC<Props> = ({
       transparent
       onRequestClose={handleRequestClose}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableOpacity
+          style={styles.backdropDismiss}
+          activeOpacity={1}
+          onPress={onClose}
+        />
         <View style={styles.modalContent}>
           {/* Header */}
           <View style={styles.header}>
@@ -374,7 +384,13 @@ export const AddTransactionModal: React.FC<Props> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.formScroll}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.formScroll}
+            contentContainerStyle={styles.formScrollContent}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+          >
             {/* Amount Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
@@ -611,14 +627,17 @@ export const AddTransactionModal: React.FC<Props> = ({
                 {editingTransaction ? 'Update Transaction' : 'Save Transaction'}
               </Text>
             </TouchableOpacity>
-            <View style={{ height: 40 }} />
+            <View style={{ height: 60 }} />
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Quick Add Category Overlay */}
       {isAddCategoryOpen && (
-        <View style={styles.quickCatOverlay}>
+        <KeyboardAvoidingView
+          style={styles.quickCatOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.quickCatCard}>
             <View style={styles.quickCatHeader}>
               <Text style={styles.quickCatTitle}>
@@ -698,12 +717,15 @@ export const AddTransactionModal: React.FC<Props> = ({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       )}
 
       {/* Quick Add Account Overlay */}
       {isAddAccountOpen && (
-        <View style={styles.quickCatOverlay}>
+        <KeyboardAvoidingView
+          style={styles.quickCatOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.quickCatCard}>
             <View style={styles.quickCatHeader}>
               <Text style={styles.quickCatTitle}>Add New Account</Text>
@@ -773,7 +795,7 @@ export const AddTransactionModal: React.FC<Props> = ({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       )}
 
       {/* Full Visual Calendar Date Picker Modal */}
@@ -799,7 +821,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
     paddingTop: 20,
-    maxHeight: '90%',
+    maxHeight: '92%',
+  },
+  backdropDismiss: {
+    flex: 1,
+  },
+  formScrollContent: {
+    paddingBottom: 60,
   },
   header: {
     flexDirection: 'row',

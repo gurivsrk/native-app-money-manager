@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
@@ -268,7 +270,10 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Edit Rate Modal */}
       <Modal visible={modalVisible} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Edit Exchange Rate</Text>
             <Text style={styles.dialogSubtitle}>
@@ -296,12 +301,15 @@ export const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add Custom Currency Modal */}
       <Modal visible={showAddModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalSheet}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Add Custom Currency</Text>
@@ -309,6 +317,13 @@ export const SettingsScreen: React.FC = () => {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
 
             <Text style={styles.fieldLabel}>Currency Code (e.g. AUD, CHF)</Text>
             <TextInput
@@ -347,8 +362,9 @@ export const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={styles.sheetSaveBtn} onPress={handleCreateCurrency}>
               <Text style={styles.sheetSaveBtnText}>Add Currency</Text>
             </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

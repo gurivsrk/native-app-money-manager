@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
@@ -174,7 +176,10 @@ export const AccountsScreen: React.FC = () => {
 
       {/* Add / Edit Account Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -189,6 +194,13 @@ export const AccountsScreen: React.FC = () => {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={true}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
 
             <Text style={styles.inputLabel}>Account Name</Text>
             <TextInput
@@ -249,8 +261,9 @@ export const AccountsScreen: React.FC = () => {
                 <Text style={styles.deleteBtnText}>Delete Account</Text>
               </TouchableOpacity>
             )}
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -373,6 +386,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
+    maxHeight: '88%',
   },
   modalHeader: {
     flexDirection: 'row',
