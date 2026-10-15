@@ -12,6 +12,7 @@ import dayjs, {
   MONTH_NAMES_FULL,
   formatDateWithWeekday,
 } from '../utils/dateUtils';
+import { theme } from '../constants/theme';
 
 interface Props {
   visible: boolean;
@@ -147,7 +148,7 @@ export const FullDatePickerModal: React.FC<Props> = ({
               onPress={handlePrevMonth}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-back" size={20} color="#0F172A" />
+              <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
             </TouchableOpacity>
 
             <Text style={styles.monthLabel}>
@@ -159,7 +160,7 @@ export const FullDatePickerModal: React.FC<Props> = ({
               onPress={handleNextMonth}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-forward" size={20} color="#0F172A" />
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -241,7 +242,7 @@ export const FullDatePickerModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: theme.colors.backdrop,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -249,12 +250,14 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radii.lg,
     padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -267,30 +270,30 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#2563EB',
+    color: theme.colors.primaryLight,
     fontWeight: '700',
     marginTop: 2,
   },
   closeBtn: {
     padding: 6,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surface,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.sm,
     paddingHorizontal: 8,
     paddingVertical: 8,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   navBtn: {
     padding: 6,
@@ -299,7 +302,7 @@ const styles = StyleSheet.create({
   monthLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   calendarContainer: {
     width: '100%',
@@ -314,21 +317,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   dayCol: {
-    flex: 1, // Guaranteed 1/7th width per column
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekdayText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   weekdaySunday: {
-    color: '#EF4444',
+    color: theme.colors.dangerLight,
   },
   weekdaySaturday: {
-    color: '#3B82F6',
+    color: theme.colors.primaryLight,
   },
   dayCell: {
     width: 36,
@@ -338,29 +341,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCellSelected: {
-    backgroundColor: '#2563EB',
-    shadowColor: '#2563EB',
+    backgroundColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 4,
   },
   dayCellToday: {
     borderWidth: 1.5,
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryGlow,
   },
   dayText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
+    color: theme.colors.text,
   },
   dayTextSelected: {
     color: '#FFFFFF',
     fontWeight: '800',
   },
   dayTextToday: {
-    color: '#2563EB',
+    color: theme.colors.primaryLight,
     fontWeight: '700',
   },
   footerRow: {
@@ -368,7 +371,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: theme.colors.border,
     paddingTop: 14,
   },
   todayBtn: {
@@ -377,11 +380,13 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 7,
     paddingHorizontal: 12,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 10,
+    backgroundColor: theme.colors.primaryGlow,
+    borderRadius: theme.radii.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   todayBtnText: {
-    color: '#2563EB',
+    color: theme.colors.primaryLight,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -390,7 +395,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   cancelBtnText: {
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
   },

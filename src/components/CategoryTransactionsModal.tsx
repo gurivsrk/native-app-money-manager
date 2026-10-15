@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Transaction, Account } from '../types';
 import { useBudget } from '../context/BudgetContext';
 import { formatDateWithWeekday } from '../utils/dateUtils';
+import { theme } from '../constants/theme';
 
 export interface CategoryModalData {
   id: string;
@@ -289,19 +290,21 @@ export const CategoryTransactionsModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: theme.colors.backdrop,
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderTopLeftRadius: theme.radii.xl,
+    borderTopRightRadius: theme.radii.xl,
     maxHeight: '88%',
     minHeight: '55%',
     paddingTop: 20,
+    borderTopWidth: 1,
+    borderColor: theme.colors.borderLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 20,
   },
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: theme.colors.border,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -338,7 +341,7 @@ const styles = StyleSheet.create({
   catTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   typeBadge: {
     paddingHorizontal: 8,
@@ -351,26 +354,26 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   periodText: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   closeBtn: {
     padding: 6,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    borderRadius: theme.radii.sm,
+    backgroundColor: theme.colors.surface,
   },
   summaryBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 20,
     marginTop: 16,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: theme.radii.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   summaryCol: {
     flex: 1,
@@ -378,20 +381,20 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    fontWeight: '700',
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   divider: {
     width: 1,
     height: 24,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: theme.colors.border,
   },
   sortRow: {
     flexDirection: 'row',
@@ -404,7 +407,7 @@ const styles = StyleSheet.create({
   sortLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
   },
   sortPills: {
     flexDirection: 'row',
@@ -412,17 +415,20 @@ const styles = StyleSheet.create({
   },
   sortPill: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    paddingVertical: 5,
+    borderRadius: theme.radii.sm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   sortPillActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primaryLight,
   },
   sortPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
   },
   sortPillTextActive: {
     color: '#FFFFFF',
@@ -433,17 +439,17 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   txCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: theme.colors.surfaceCard,
+    borderRadius: theme.radii.md,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 2,
   },
   txMain: {
     flexDirection: 'row',
@@ -462,17 +468,17 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#2563EB',
+    color: theme.colors.primaryLight,
   },
   txNote: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1E293B',
+    color: theme.colors.text,
     marginBottom: 6,
   },
   txNoteEmpty: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     fontStyle: 'italic',
     marginBottom: 6,
   },
@@ -480,18 +486,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: theme.radii.xs,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   accountName: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#475569',
+    color: theme.colors.textSecondary,
   },
   txRight: {
     alignItems: 'flex-end',
@@ -508,9 +514,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   actionBtn: {
-    padding: 4,
-    borderRadius: 6,
-    backgroundColor: '#F8FAFC',
+    padding: 5,
+    borderRadius: theme.radii.xs,
+    backgroundColor: theme.colors.surface,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -521,20 +527,22 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 6,
   },
   emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     maxWidth: 260,
     lineHeight: 18,

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Transaction, Account, Category } from '../types';
 import { useBudget } from '../context/BudgetContext';
 import { formatDateWithWeekday } from '../utils/dateUtils';
+import { theme } from '../constants/theme';
 
 interface Props {
   transaction: Transaction;
@@ -29,7 +30,7 @@ export const TransactionCard: React.FC<Props> = ({
       return {
         title: 'Account Transfer',
         subtitle: `${fromAcc?.name || 'Account'} → ${toAcc?.name || 'Account'}`,
-        color: '#3B82F6',
+        color: theme.colors.primary,
         icon: 'swap-horizontal',
         amountPrefix: '',
       };
@@ -42,7 +43,7 @@ export const TransactionCard: React.FC<Props> = ({
       return {
         title: cat?.name || 'Income',
         subtitle: `${acc?.name || 'Account'}${transaction.note ? ' • ' + transaction.note : ''}`,
-        color: '#10B981',
+        color: theme.colors.success,
         icon: (cat?.icon as any) || 'arrow-up-circle',
         amountPrefix: '+',
       };
@@ -52,7 +53,7 @@ export const TransactionCard: React.FC<Props> = ({
     return {
       title: cat?.name || 'Expense',
       subtitle: `${acc?.name || 'Account'}${transaction.note ? ' • ' + transaction.note : ''}`,
-      color: '#EF4444',
+      color: theme.colors.danger,
       icon: (cat?.icon as any) || 'arrow-down-circle',
       amountPrefix: '-',
     };
@@ -67,12 +68,22 @@ export const TransactionCard: React.FC<Props> = ({
         onPress={() => onEdit && onEdit(transaction)}
         activeOpacity={0.7}
       >
-        <View style={[styles.iconWrap, { backgroundColor: `${details.color}15` }]}>
-          <Ionicons name={details.icon as any} size={22} color={details.color} />
+        <View
+          style={[
+            styles.iconWrap,
+            {
+              backgroundColor: `${details.color}18`,
+              borderColor: `${details.color}35`,
+            },
+          ]}
+        >
+          <Ionicons name={details.icon as any} size={21} color={details.color} />
         </View>
 
         <View style={styles.contentWrap}>
-          <Text style={styles.title}>{details.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            {details.title}
+          </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
             {details.subtitle}
           </Text>
@@ -83,10 +94,18 @@ export const TransactionCard: React.FC<Props> = ({
           <Text
             style={[
               styles.amount,
-              { color: details.amountPrefix === '+' ? '#10B981' : details.amountPrefix === '-' ? '#EF4444' : '#3B82F6' },
+              {
+                color:
+                  details.amountPrefix === '+'
+                    ? theme.colors.successLight
+                    : details.amountPrefix === '-'
+                    ? theme.colors.dangerLight
+                    : theme.colors.primaryLight,
+              },
             ]}
           >
-            {details.amountPrefix}{formatAmount(transaction.amount)}
+            {details.amountPrefix}
+            {formatAmount(transaction.amount)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -98,7 +117,7 @@ export const TransactionCard: React.FC<Props> = ({
             onPress={() => onEdit(transaction)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="pencil-outline" size={17} color="#64748B" />
+            <Ionicons name="pencil-outline" size={16} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         )}
         {onDelete && (
@@ -107,7 +126,7 @@ export const TransactionCard: React.FC<Props> = ({
             onPress={() => onDelete(transaction.id)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="trash-outline" size={17} color="#EF4444" />
+            <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
           </TouchableOpacity>
         )}
       </View>
@@ -119,18 +138,18 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surfaceCard,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 16,
+    borderRadius: theme.radii.md,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   clickableArea: {
     flex: 1,
@@ -140,46 +159,53 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    borderWidth: 1,
   },
   contentWrap: {
     flex: 1,
+    paddingRight: 6,
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 2,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     marginBottom: 2,
   },
   dateText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
+    fontWeight: '500',
   },
   rightWrap: {
     alignItems: 'flex-end',
-    marginRight: 8,
+    marginRight: 10,
   },
   amount: {
     fontSize: 15,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderLeftWidth: 1,
-    borderLeftColor: '#F1F5F9',
+    borderLeftColor: theme.colors.border,
     paddingLeft: 8,
   },
   iconBtn: {
-    padding: 4,
+    padding: 5,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
 });

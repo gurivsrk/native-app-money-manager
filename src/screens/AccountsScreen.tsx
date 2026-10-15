@@ -16,9 +16,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
 import { Account } from '../types';
+import { theme } from '../constants/theme';
 
 export const AccountsScreen: React.FC = () => {
-  const { accounts, addAccount, updateAccount, deleteAccount, formatAmount, activeCurrency } = useBudget();
+  const { accounts, addAccount, updateAccount, deleteAccount, formatAmount, activeCurrency } =
+    useBudget();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
@@ -37,7 +39,6 @@ export const AccountsScreen: React.FC = () => {
   const openEditModal = (acc: Account) => {
     setEditingAccount(acc);
     setName(acc.name);
-    // Display converted balance in active currency
     setBalance((acc.balance * (activeCurrency.rate || 1.0)).toFixed(2));
     setType(acc.type);
     setModalVisible(true);
@@ -51,20 +52,20 @@ export const AccountsScreen: React.FC = () => {
     const enteredBal = parseFloat(balance) || 0;
 
     let icon = 'business-outline';
-    let color = '#3B82F6';
+    let color = theme.colors.primary;
 
     if (type === 'cash') {
       icon = 'cash-outline';
-      color = '#10B981';
+      color = theme.colors.success;
     } else if (type === 'savings') {
       icon = 'shield-checkmark-outline';
-      color = '#8B5CF6';
+      color = theme.colors.purple;
     } else if (type === 'credit') {
       icon = 'card-outline';
-      color = '#EC4899';
+      color = theme.colors.danger;
     } else if (type === 'investment') {
       icon = 'trending-up-outline';
-      color = '#F59E0B';
+      color = theme.colors.warning;
     }
 
     if (editingAccount) {
@@ -117,29 +118,38 @@ export const AccountsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
 
       <View style={styles.header}>
         <View>
           <Text style={styles.headerSubtitle}>Portfolio & Wallets ({activeCurrency.code})</Text>
           <Text style={styles.headerTitle}>Accounts</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
+        <TouchableOpacity style={styles.addBtn} onPress={openAddModal} activeOpacity={0.8}>
           <Ionicons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Total Net Worth Card */}
+        {/* Total Available Funds Card */}
         <View style={styles.netWorthCard}>
-          <Text style={styles.netWorthLabel}>Total Available Funds</Text>
-          <Text style={styles.netWorthAmount}>
-            {formatAmount(totalBalance)}
-          </Text>
-          <Text style={styles.netWorthSub}>Across {accounts.length} active accounts</Text>
+          <View style={styles.cardTopRow}>
+            <Text style={styles.netWorthLabel}>Total Available Funds</Text>
+            <View style={styles.accountCountPill}>
+              <Text style={styles.accountCountText}>{accounts.length} Accounts</Text>
+            </View>
+          </View>
+          <Text style={styles.netWorthAmount}>{formatAmount(totalBalance)}</Text>
+          <Text style={styles.netWorthSub}>All linked bank, cash, and credit accounts</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Your Accounts</Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="wallet" size={17} color={theme.colors.primaryLight} />
+            <Text style={styles.sectionTitle}>Your Accounts</Text>
+          </View>
+          <Text style={styles.sectionHint}>Tap to edit details</Text>
+        </View>
 
         {accounts.map((acc) => (
           <TouchableOpacity
@@ -148,30 +158,45 @@ export const AccountsScreen: React.FC = () => {
             onPress={() => openEditModal(acc)}
             activeOpacity={0.7}
           >
-            <View style={[styles.iconCircle, { backgroundColor: acc.color }]}>
-              <Ionicons name={(acc.icon as any) || 'wallet-outline'} size={22} color="#FFF" />
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: `${acc.color}20`, borderColor: `${acc.color}40` },
+              ]}
+            >
+              <Ionicons name={(acc.icon as any) || 'wallet-outline'} size={21} color={acc.color} />
             </View>
 
             <View style={styles.infoWrap}>
               <Text style={styles.accountName}>{acc.name}</Text>
-              <Text style={styles.accountType}>{acc.type.toUpperCase()}</Text>
+              <View style={styles.typeBadge}>
+                <Text style={styles.accountType}>{acc.type}</Text>
+              </View>
             </View>
 
             <View style={styles.rightAccountSide}>
               <Text
                 style={[
                   styles.accountBalance,
-                  acc.balance < 0 ? { color: '#EF4444' } : { color: '#0F172A' },
+                  {
+                    color:
+                      acc.balance < 0 ? theme.colors.dangerLight : theme.colors.text,
+                  },
                 ]}
               >
                 {formatAmount(acc.balance)}
               </Text>
-              <Ionicons name="pencil-outline" size={16} color="#94A3B8" style={{ marginTop: 4 }} />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={theme.colors.textTertiary}
+                style={{ marginTop: 4 }}
+              />
             </View>
           </TouchableOpacity>
         ))}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
 
       {/* Add / Edit Account Modal */}
@@ -190,8 +215,9 @@ export const AccountsScreen: React.FC = () => {
                   setModalVisible(false);
                   setEditingAccount(null);
                 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -201,66 +227,73 @@ export const AccountsScreen: React.FC = () => {
               automaticallyAdjustKeyboardInsets={true}
               contentContainerStyle={{ paddingBottom: 40 }}
             >
+              <Text style={styles.inputLabel}>Account Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. PayPal, Chase, Cash Envelope"
+                placeholderTextColor={theme.colors.textTertiary}
+                value={name}
+                onChangeText={setName}
+              />
 
-            <Text style={styles.inputLabel}>Account Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. PayPal, Chase, Cash Envelope"
-              placeholderTextColor="#94A3B8"
-              value={name}
-              onChangeText={setName}
-            />
-
-            <Text style={styles.inputLabel}>
-              Balance ({activeCurrency.symbol} {activeCurrency.code})
-            </Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="0.00"
-              keyboardType="numeric"
-              placeholderTextColor="#94A3B8"
-              value={balance}
-              onChangeText={setBalance}
-            />
-
-            <Text style={styles.inputLabel}>Account Type</Text>
-            <View style={styles.typeSelector}>
-              {(['bank', 'cash', 'savings', 'credit', 'investment'] as Account['type'][]).map((t) => {
-                const isSelected = type === t;
-                return (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.typeOption, isSelected && styles.typeOptionSelected]}
-                    onPress={() => setType(t)}
-                  >
-                    <Text
-                      style={[
-                        styles.typeOptionText,
-                        isSelected && styles.typeOptionTextSelected,
-                      ]}
-                    >
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveAccount}>
-              <Text style={styles.saveBtnText}>
-                {editingAccount ? 'Update Account' : 'Create Account'}
+              <Text style={styles.inputLabel}>
+                Balance ({activeCurrency.symbol} {activeCurrency.code})
               </Text>
-            </TouchableOpacity>
+              <TextInput
+                style={styles.textInput}
+                placeholder="0.00"
+                keyboardType="numeric"
+                placeholderTextColor={theme.colors.textTertiary}
+                value={balance}
+                onChangeText={setBalance}
+              />
 
-            {editingAccount && (
+              <Text style={styles.inputLabel}>Account Type</Text>
+              <View style={styles.typeSelector}>
+                {(['bank', 'cash', 'savings', 'credit', 'investment'] as Account['type'][]).map(
+                  (t) => {
+                    const isSelected = type === t;
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.typeOption, isSelected && styles.typeOptionSelected]}
+                        onPress={() => setType(t)}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.typeOptionText,
+                            isSelected && styles.typeOptionTextSelected,
+                          ]}
+                        >
+                          {t}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                )}
+              </View>
+
               <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDelete(editingAccount)}
+                style={styles.saveBtn}
+                onPress={handleSaveAccount}
+                activeOpacity={0.8}
               >
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                <Text style={styles.deleteBtnText}>Delete Account</Text>
+                <Text style={styles.saveBtnText}>
+                  {editingAccount ? 'Update Account' : 'Create Account'}
+                </Text>
               </TouchableOpacity>
-            )}
+
+              {editingAccount && (
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDelete(editingAccount)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trash-outline" size={17} color={theme.colors.dangerLight} />
+                  <Text style={styles.deleteBtnText}>Delete Account</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -272,80 +305,130 @@ export const AccountsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-    backgroundColor: '#0F172A',
+    paddingTop: 14,
+    paddingBottom: 14,
+    backgroundColor: theme.colors.background,
   },
   headerSubtitle: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
+    color: theme.colors.text,
+    fontSize: 24,
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
   addBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   scrollContent: {
-    backgroundColor: '#F8FAFC',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    minHeight: '100%',
+    paddingHorizontal: 18,
+    paddingTop: 10,
   },
   netWorthCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: theme.colors.surfaceCard,
     padding: 20,
-    borderRadius: 20,
-    marginBottom: 24,
+    borderRadius: theme.radii.lg,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   netWorthLabel: {
-    color: '#94A3B8',
-    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
     fontWeight: '600',
   },
+  accountCountPill: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radii.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  accountCountText: {
+    fontSize: 11,
+    color: theme.colors.primaryLight,
+    fontWeight: '700',
+  },
   netWorthAmount: {
-    color: '#FFFFFF',
-    fontSize: 32,
+    color: theme.colors.text,
+    fontSize: 34,
     fontWeight: '800',
     marginVertical: 6,
+    letterSpacing: -0.8,
   },
   netWorthSub: {
-    color: '#64748B',
+    color: theme.colors.textTertiary,
     fontSize: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 14,
+    color: theme.colors.text,
+    letterSpacing: -0.2,
+  },
+  sectionHint: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
   },
   accountItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 18,
-    marginBottom: 12,
+    backgroundColor: theme.colors.surfaceCard,
+    padding: 15,
+    borderRadius: theme.radii.md,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   iconCircle: {
     width: 44,
@@ -354,6 +437,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
+    borderWidth: 1,
   },
   infoWrap: {
     flex: 1,
@@ -361,13 +445,22 @@ const styles = StyleSheet.create({
   accountName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
+    color: theme.colors.text,
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   accountType: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
   },
   rightAccountSide: {
     alignItems: 'flex-end',
@@ -375,18 +468,21 @@ const styles = StyleSheet.create({
   accountBalance: {
     fontSize: 16,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: theme.colors.backdrop,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderTopLeftRadius: theme.radii.xl,
+    borderTopRightRadius: theme.radii.xl,
     padding: 24,
     maxHeight: '88%',
+    borderTopWidth: 1,
+    borderColor: theme.colors.borderLight,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -395,27 +491,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.3,
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
     marginBottom: 6,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   textInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
     marginBottom: 16,
-    color: '#0F172A',
+    color: theme.colors.text,
+    fontWeight: '600',
   },
   typeSelector: {
     flexDirection: 'row',
@@ -426,31 +525,40 @@ const styles = StyleSheet.create({
   typeOption: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    borderRadius: theme.radii.sm,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   typeOptionSelected: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primaryLight,
   },
   typeOptionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: theme.colors.textSecondary,
     textTransform: 'capitalize',
   },
   typeOptionTextSelected: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   saveBtn: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 16,
-    borderRadius: 16,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 15,
+    borderRadius: theme.radii.md,
     alignItems: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
   },
   saveBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   deleteBtn: {
     flexDirection: 'row',
@@ -461,8 +569,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   deleteBtnText: {
-    color: '#EF4444',
-    fontSize: 15,
+    color: theme.colors.dangerLight,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

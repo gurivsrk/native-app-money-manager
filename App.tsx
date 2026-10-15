@@ -11,23 +11,30 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { BudgetProvider } from './src/context/BudgetContext';
+import { BudgetProvider, useBudget } from './src/context/BudgetContext';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
-import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountsScreen } from './src/screens/AccountsScreen';
-import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { AddTransactionModal } from './src/components/AddTransactionModal';
+import { theme } from './src/constants/theme';
 
 const Tab = createBottomTabNavigator();
+const DummyScreen = () => null;
 
 function MainAppShell() {
   const isWeb = Platform.OS === 'web';
   const insets = useSafeAreaInsets();
   const [isFullscreen, setIsFullscreen] = useState(!isWeb);
 
+  const {
+    isGlobalAddModalOpen,
+    globalAddModalType,
+    openGlobalAddModal,
+    closeGlobalAddModal,
+  } = useBudget();
+
   // Dynamic top padding ensures status bar, camera hole-punch, and notch are completely cleared
-  // Especially on Android devices like Poco F6, Xiaomi, OnePlus, Samsung
   const topPadding = !isWeb
     ? Math.max(insets.top, StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 40)
     : 0;
@@ -36,7 +43,7 @@ function MainAppShell() {
     <View style={[styles.rootContainer, isFullscreen && styles.rootFullscreen]}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#0F172A"
+        backgroundColor={theme.colors.background}
         translucent={false}
       />
 
@@ -68,7 +75,7 @@ function MainAppShell() {
           { paddingTop: topPadding },
         ]}
       >
-        {/* Hardware Notch / Dynamic Island for Realistic Web View */}
+        {/* Hardware Notch / Dynamic Island for Web View */}
         {isWeb && !isFullscreen && (
           <View style={styles.notchContainer}>
             <View style={styles.dynamicIsland}>
@@ -84,18 +91,20 @@ function MainAppShell() {
             <Tab.Navigator
               screenOptions={({ route }) => ({
                 headerShown: false,
-                tabBarActiveTintColor: '#3B82F6',
-                tabBarInactiveTintColor: '#94A3B8',
+                tabBarActiveTintColor: theme.colors.primary,
+                tabBarInactiveTintColor: theme.colors.textTertiary,
                 tabBarStyle: {
-                  backgroundColor: '#FFFFFF',
-                  borderTopColor: '#E2E8F0',
+                  backgroundColor: theme.colors.surface,
+                  borderTopColor: theme.colors.border,
+                  borderTopWidth: 1,
                   height: 64 + (isWeb ? 0 : insets.bottom),
-                  paddingBottom: 10 + (isWeb ? 0 : insets.bottom),
+                  paddingBottom: 8 + (isWeb ? 0 : insets.bottom),
                   paddingTop: 8,
                 },
                 tabBarLabelStyle: {
                   fontSize: 10,
-                  fontWeight: '600',
+                  fontWeight: '700',
+                  letterSpacing: 0.2,
                 },
                 tabBarIcon: ({ focused, color, size }) => {
                   let iconName: any = 'home';
@@ -104,25 +113,40 @@ function MainAppShell() {
                     iconName = focused ? 'home' : 'home-outline';
                   } else if (route.name === 'Analytics') {
                     iconName = focused ? 'pie-chart' : 'pie-chart-outline';
-                  } else if (route.name === 'Reports') {
-                    iconName = focused ? 'document-text' : 'document-text-outline';
                   } else if (route.name === 'Accounts') {
                     iconName = focused ? 'wallet' : 'wallet-outline';
-                  } else if (route.name === 'Categories') {
-                    iconName = focused ? 'grid' : 'grid-outline';
                   } else if (route.name === 'Settings') {
-                    iconName = focused ? 'settings' : 'settings-outline';
+                    iconName = focused ? 'options' : 'options-outline';
                   }
 
-                  return <Ionicons name={iconName} size={20} color={color} />;
+                  return <Ionicons name={iconName} size={21} color={color} />;
                 },
               })}
             >
               <Tab.Screen name="Dashboard" component={HomeScreen} />
               <Tab.Screen name="Analytics" component={AnalyticsScreen} />
-              <Tab.Screen name="Reports" component={ReportsScreen} />
+
+              {/* Center Floating Quick-Add Action Button */}
+              <Tab.Screen
+                name="QuickAdd"
+                component={DummyScreen}
+                options={{
+                  tabBarLabel: () => null,
+                  tabBarButton: () => (
+                    <View style={styles.floatingBtnWrapper}>
+                      <TouchableOpacity
+                        style={styles.floatingCenterBtn}
+                        onPress={() => openGlobalAddModal('expense')}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="add" size={28} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ),
+                }}
+              />
+
               <Tab.Screen name="Accounts" component={AccountsScreen} />
-              <Tab.Screen name="Categories" component={CategoriesScreen} />
               <Tab.Screen name="Settings" component={SettingsScreen} />
             </Tab.Navigator>
           </NavigationContainer>
@@ -135,6 +159,13 @@ function MainAppShell() {
           </View>
         )}
       </View>
+
+      {/* Global Add Transaction Modal mounted at root */}
+      <AddTransactionModal
+        visible={isGlobalAddModalOpen}
+        onClose={closeGlobalAddModal}
+        initialType={globalAddModalType}
+      />
     </View>
   );
 }
@@ -152,14 +183,14 @@ export default function App() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#090D16',
+    backgroundColor: '#070A12',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     height: '100%',
   },
   rootFullscreen: {
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.background,
   },
   floatingControls: {
     position: 'absolute',
@@ -171,16 +202,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    backgroundColor: 'rgba(19, 27, 43, 0.9)',
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: theme.colors.border,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: theme.radii.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
     elevation: 6,
   },
   toggleFullscreenText: {
@@ -189,7 +220,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   appFrame: {
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.background,
     overflow: 'hidden',
   },
   appFrameBordered: {
@@ -199,10 +230,10 @@ const styles = StyleSheet.create({
     maxHeight: 900,
     borderRadius: 44,
     borderWidth: 10,
-    borderColor: '#1E293B',
+    borderColor: '#182234',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.5,
     shadowRadius: 28,
     elevation: 12,
   },
@@ -214,7 +245,7 @@ const styles = StyleSheet.create({
   },
   notchContainer: {
     height: 34,
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
@@ -244,9 +275,29 @@ const styles = StyleSheet.create({
   appContent: {
     flex: 1,
   },
+  floatingBtnWrapper: {
+    top: -16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingCenterBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: theme.colors.primary,
+    borderWidth: 3,
+    borderColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
+  },
   bottomBarContainer: {
     height: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -254,6 +305,6 @@ const styles = StyleSheet.create({
     width: 130,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: '#334155',
   },
 });

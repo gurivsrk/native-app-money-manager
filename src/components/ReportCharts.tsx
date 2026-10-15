@@ -11,6 +11,7 @@ import { Transaction } from '../types';
 import { useBudget } from '../context/BudgetContext';
 import { MONTH_NAMES_SHORT } from '../utils/dateUtils';
 import { CategoryModalData } from './CategoryTransactionsModal';
+import { theme } from '../constants/theme';
 
 interface Props {
   reportMode: 'monthly' | 'yearly';
@@ -441,17 +442,17 @@ export const ReportCharts: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   chartCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceCard,
+    borderRadius: theme.radii.lg,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
   },
   chartHeader: {
     flexDirection: 'row',
@@ -467,26 +468,28 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   tabGroup: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.sm,
     padding: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   tabBtn: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 7,
   },
   tabBtnActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
   },
   tabBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
   },
   tabBtnTextActive: {
     color: '#FFFFFF',
@@ -497,7 +500,7 @@ const styles = StyleSheet.create({
   subHeading: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginBottom: 12,
   },
   segmentedBar: {
@@ -505,7 +508,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     flexDirection: 'row',
     overflow: 'hidden',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: theme.colors.surface,
     marginBottom: 16,
   },
   segment: {
@@ -521,11 +524,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     width: '48%',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     padding: 8,
-    borderRadius: 12,
+    borderRadius: theme.radii.sm,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
   },
   legendDot: {
     width: 10,
@@ -543,24 +546,24 @@ const styles = StyleSheet.create({
   legendName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: theme.colors.text,
     flex: 1,
     marginRight: 4,
   },
   legendPercent: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#3B82F6',
+    color: theme.colors.primaryLight,
   },
   legendAmount: {
     fontSize: 11,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
     marginTop: 1,
   },
   tapPrompt: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     textAlign: 'center',
     marginTop: 12,
     fontStyle: 'italic',
@@ -580,14 +583,14 @@ const styles = StyleSheet.create({
   barValueText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 6,
     textAlign: 'center',
   },
   barTrack: {
     width: 32,
     height: 95,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -611,25 +614,25 @@ const styles = StyleSheet.create({
   barLabelText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
   },
   cashflowPill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.sm,
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   cashflowPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: theme.colors.text,
   },
   trendChartContainer: {
     flexDirection: 'row',
@@ -645,13 +648,13 @@ const styles = StyleSheet.create({
   trendValText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginBottom: 4,
   },
   trendBarTrack: {
     width: 24,
     height: 85,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surface,
     borderRadius: 6,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -664,12 +667,12 @@ const styles = StyleSheet.create({
   trendColLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginTop: 6,
   },
   trendFooterNote: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     textAlign: 'center',
     marginTop: 10,
   },
@@ -687,9 +690,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   annualColSelected: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: theme.colors.primaryGlow,
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: theme.colors.primary,
   },
   annualBarsTrack: {
     flexDirection: 'row',
@@ -705,25 +708,25 @@ const styles = StyleSheet.create({
   annualMonthText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     marginTop: 6,
   },
   annualMonthTextSelected: {
-    color: '#3B82F6',
+    color: theme.colors.primaryLight,
     fontWeight: '800',
   },
   monthDetailCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     borderRadius: 10,
     padding: 10,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   monthDetailTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   monthDetailRow: {
@@ -744,12 +747,12 @@ const styles = StyleSheet.create({
   },
   legendSimpleText: {
     fontSize: 11,
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
   },
   legendHint: {
     fontSize: 10,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     fontStyle: 'italic',
   },
   emptyChart: {
@@ -759,7 +762,7 @@ const styles = StyleSheet.create({
   },
   emptyChartText: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: theme.colors.textTertiary,
     marginTop: 8,
   },
 });

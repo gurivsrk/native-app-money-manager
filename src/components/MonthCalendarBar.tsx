@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
+import { theme } from '../constants/theme';
 
 interface Props {
   selectedYearMonth: string; // 'YYYY-MM'
@@ -43,8 +44,9 @@ export const MonthCalendarBar: React.FC<Props> = ({
         style={styles.navBtn}
         onPress={handlePrev}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        activeOpacity={0.7}
       >
-        <Ionicons name="chevron-back" size={20} color="#94A3B8" />
+        <Ionicons name="chevron-back" size={18} color={theme.colors.textSecondary} />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -52,14 +54,18 @@ export const MonthCalendarBar: React.FC<Props> = ({
         onPress={onOpenPicker}
         activeOpacity={0.7}
       >
-        <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+        <Ionicons name="calendar-outline" size={15} color={theme.colors.primaryLight} />
         <Text style={styles.monthText}>{formattedDisplay}</Text>
-        <Ionicons name="chevron-down" size={14} color="#94A3B8" />
+        <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
       </TouchableOpacity>
 
       <View style={styles.rightGroup}>
         {!isCurrentMonth() && (
-          <TouchableOpacity style={styles.todayPill} onPress={handleResetToCurrent}>
+          <TouchableOpacity
+            style={styles.todayPill}
+            onPress={handleResetToCurrent}
+            activeOpacity={0.8}
+          >
             <Text style={styles.todayText}>Today</Text>
           </TouchableOpacity>
         )}
@@ -68,8 +74,9 @@ export const MonthCalendarBar: React.FC<Props> = ({
           style={styles.navBtn}
           onPress={handleNext}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
-          <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -81,32 +88,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.md,
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 2,
   },
   navBtn: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 7,
+    borderRadius: theme.radii.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   centerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: theme.radii.sm,
+    backgroundColor: theme.colors.primaryGlow,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   monthText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: theme.colors.text,
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   rightGroup: {
     flexDirection: 'row',
@@ -114,10 +129,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   todayPill: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 8,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: theme.radii.xs,
   },
   todayText: {
     color: '#FFFFFF',

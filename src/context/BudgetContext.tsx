@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Account, Category, Transaction, MonthlySummary, Currency } from '../types';
+import { Account, Category, Transaction, MonthlySummary, Currency, TransactionType } from '../types';
 import { StorageService } from '../services/storage';
 import { DEFAULT_CURRENCIES } from '../constants/initialData';
 import { getCurrentYearMonthString } from '../utils/dateUtils';
@@ -39,6 +39,11 @@ interface BudgetContextType {
   uploadToCloud: () => Promise<{ success: boolean; message: string }>;
   restoreFromCloud: () => Promise<{ success: boolean; message: string }>;
   testCloudConnection: () => Promise<{ success: boolean; message: string }>;
+  // Global Add Transaction Modal
+  isGlobalAddModalOpen: boolean;
+  globalAddModalType: TransactionType;
+  openGlobalAddModal: (type?: TransactionType) => void;
+  closeGlobalAddModal: () => void;
 }
 
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
@@ -54,6 +59,19 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Cloud Sync state
   const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('offline');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+  // Global Add Transaction Modal state
+  const [isGlobalAddModalOpen, setIsGlobalAddModalOpen] = useState<boolean>(false);
+  const [globalAddModalType, setGlobalAddModalType] = useState<TransactionType>('expense');
+
+  const openGlobalAddModal = (type: TransactionType = 'expense') => {
+    setGlobalAddModalType(type);
+    setIsGlobalAddModalOpen(true);
+  };
+
+  const closeGlobalAddModal = () => {
+    setIsGlobalAddModalOpen(false);
+  };
 
   const loadData = async () => {
     try {
@@ -540,6 +558,10 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         uploadToCloud,
         restoreFromCloud,
         testCloudConnection,
+        isGlobalAddModalOpen,
+        globalAddModalType,
+        openGlobalAddModal,
+        closeGlobalAddModal,
       }}
     >
       {children}

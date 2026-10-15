@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useBudget } from '../context/BudgetContext';
 import { Category } from '../types';
+import { theme } from '../constants/theme';
 
 const ICON_PRESETS = [
   'cart-outline',
@@ -54,7 +55,11 @@ const COLOR_PRESETS = [
   '#64748B',
 ];
 
-export const CategoriesScreen: React.FC = () => {
+interface Props {
+  onClose?: () => void;
+}
+
+export const CategoriesScreen: React.FC<Props> = ({ onClose }) => {
   const { categories, addCategory, updateCategory, deleteCategory } = useBudget();
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>('expense');
 
@@ -134,14 +139,22 @@ export const CategoriesScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
 
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerSubtitle}>Manage & Customize</Text>
-          <Text style={styles.headerTitle}>Categories</Text>
+        <View style={styles.headerLeft}>
+          {onClose && (
+            <TouchableOpacity onPress={onClose} style={styles.closeHeaderBtn} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+            </TouchableOpacity>
+          )}
+          <View>
+            <Text style={styles.headerSubtitle}>Manage & Customize</Text>
+            <Text style={styles.headerTitle}>Categories</Text>
+          </View>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
+
+        <TouchableOpacity style={styles.addBtn} onPress={openAddModal} activeOpacity={0.8}>
           <Ionicons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
       </View>
@@ -152,35 +165,40 @@ export const CategoriesScreen: React.FC = () => {
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'expense' && styles.tabBtnActiveExpense]}
             onPress={() => setActiveTab('expense')}
+            activeOpacity={0.8}
           >
             <Ionicons
               name="arrow-down-circle"
-              size={18}
-              color={activeTab === 'expense' ? '#FFF' : '#EF4444'}
+              size={16}
+              color={activeTab === 'expense' ? '#FFF' : theme.colors.dangerLight}
             />
             <Text style={[styles.tabBtnText, activeTab === 'expense' && styles.tabBtnTextActive]}>
-              Expense Categories
+              Expenses
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'income' && styles.tabBtnActiveIncome]}
             onPress={() => setActiveTab('income')}
+            activeOpacity={0.8}
           >
             <Ionicons
               name="arrow-up-circle"
-              size={18}
-              color={activeTab === 'income' ? '#FFF' : '#10B981'}
+              size={16}
+              color={activeTab === 'income' ? '#FFF' : theme.colors.successLight}
             />
             <Text style={[styles.tabBtnText, activeTab === 'income' && styles.tabBtnTextActive]}>
-              Income Categories
+              Income
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.listHeader}>
-          {activeTab === 'expense' ? 'Expense' : 'Income'} Categories ({filteredCategories.length})
-        </Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.listHeader}>
+            {activeTab === 'expense' ? 'Expense' : 'Income'} Categories ({filteredCategories.length})
+          </Text>
+          <Text style={styles.hintText}>Tap to customize</Text>
+        </View>
 
         <View style={styles.categoryGrid}>
           {filteredCategories.map((cat) => (
@@ -190,23 +208,27 @@ export const CategoriesScreen: React.FC = () => {
               onPress={() => openEditModal(cat)}
               activeOpacity={0.7}
             >
-              <View style={[styles.iconWrap, { backgroundColor: cat.color }]}>
-                <Ionicons name={(cat.icon as any) || 'pricetag'} size={22} color="#FFF" />
+              <View
+                style={[
+                  styles.iconWrap,
+                  { backgroundColor: `${cat.color}20`, borderColor: `${cat.color}40` },
+                ]}
+              >
+                <Ionicons name={(cat.icon as any) || 'pricetag'} size={22} color={cat.color} />
               </View>
 
               <Text style={styles.catName} numberOfLines={2}>
                 {cat.name}
               </Text>
 
-              <View style={styles.editBadge}>
-                <Ionicons name="pencil-outline" size={13} color="#64748B" />
-                <Text style={styles.editBadgeText}>Edit</Text>
+              <View style={styles.editIndicator}>
+                <Ionicons name="pencil-outline" size={13} color={theme.colors.textTertiary} />
               </View>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
 
       {/* Add / Edit Category Modal */}
@@ -218,15 +240,16 @@ export const CategoriesScreen: React.FC = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingCategory ? 'Edit Category' : `Add ${activeTab.toUpperCase()} Category`}
+                {editingCategory ? 'Edit Category' : 'Add New Category'}
               </Text>
               <TouchableOpacity
                 onPress={() => {
                   setModalVisible(false);
                   setEditingCategory(null);
                 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -234,33 +257,33 @@ export const CategoriesScreen: React.FC = () => {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               automaticallyAdjustKeyboardInsets={true}
-              contentContainerStyle={{ paddingBottom: 60 }}
-              style={{ maxHeight: 520 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
             >
               <Text style={styles.fieldLabel}>Category Name</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g. Freelance, Coffee, Gym, Subscriptions"
-                placeholderTextColor="#94A3B8"
+                placeholder="e.g. Groceries, Gym, Rent"
+                placeholderTextColor={theme.colors.textTertiary}
                 value={name}
                 onChangeText={setName}
               />
 
-              <Text style={styles.fieldLabel}>Select Color</Text>
+              <Text style={styles.fieldLabel}>Color Theme</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorsRow}>
-                {COLOR_PRESETS.map((col) => {
-                  const isSelected = selectedColor === col;
+                {COLOR_PRESETS.map((color) => {
+                  const isSelected = selectedColor === color;
                   return (
                     <TouchableOpacity
-                      key={col}
+                      key={color}
                       style={[
                         styles.colorDot,
-                        { backgroundColor: col },
+                        { backgroundColor: color },
                         isSelected && styles.colorDotSelected,
                       ]}
-                      onPress={() => setSelectedColor(col)}
+                      onPress={() => setSelectedColor(color)}
+                      activeOpacity={0.8}
                     >
-                      {isSelected && <Ionicons name="checkmark" size={16} color="#FFF" />}
+                      {isSelected && <Ionicons name="checkmark" size={18} color="#FFF" />}
                     </TouchableOpacity>
                   );
                 })}
@@ -268,28 +291,32 @@ export const CategoriesScreen: React.FC = () => {
 
               <Text style={styles.fieldLabel}>Select Icon</Text>
               <View style={styles.iconsGrid}>
-                {ICON_PRESETS.map((ico) => {
-                  const isSelected = selectedIcon === ico;
+                {ICON_PRESETS.map((icon) => {
+                  const isSelected = selectedIcon === icon;
                   return (
                     <TouchableOpacity
-                      key={ico}
+                      key={icon}
                       style={[
                         styles.iconPickerBox,
-                        isSelected && { borderColor: selectedColor, backgroundColor: `${selectedColor}15` },
+                        isSelected && {
+                          borderColor: selectedColor,
+                          backgroundColor: `${selectedColor}20`,
+                        },
                       ]}
-                      onPress={() => setSelectedIcon(ico)}
+                      onPress={() => setSelectedIcon(icon)}
+                      activeOpacity={0.8}
                     >
                       <Ionicons
-                        name={ico as any}
+                        name={icon as any}
                         size={22}
-                        color={isSelected ? selectedColor : '#64748B'}
+                        color={isSelected ? selectedColor : theme.colors.textSecondary}
                       />
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
                 <Text style={styles.saveBtnText}>
                   {editingCategory ? 'Update Category' : 'Create Category'}
                 </Text>
@@ -299,12 +326,12 @@ export const CategoriesScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.deleteBtn}
                   onPress={() => handleDelete(editingCategory)}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={18} color={theme.colors.dangerLight} />
                   <Text style={styles.deleteBtnText}>Delete Category</Text>
                 </TouchableOpacity>
               )}
-              <View style={{ height: 20 }} />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -316,50 +343,65 @@ export const CategoriesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-    backgroundColor: '#0F172A',
+    paddingTop: 14,
+    paddingBottom: 14,
+    backgroundColor: theme.colors.background,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  closeHeaderBtn: {
+    padding: 6,
+    borderRadius: theme.radii.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   headerSubtitle: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
+    color: theme.colors.text,
+    fontSize: 24,
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
   addBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: theme.colors.primary,
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   scrollContent: {
-    backgroundColor: '#F8FAFC',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    minHeight: '100%',
+    paddingHorizontal: 18,
+    paddingTop: 10,
   },
   tabToggle: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 14,
+    backgroundColor: theme.colors.surfaceCard,
     padding: 4,
-    marginBottom: 20,
+    borderRadius: theme.radii.md,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   tabBtn: {
     flex: 1,
@@ -367,88 +409,94 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: theme.radii.sm,
     gap: 6,
   },
   tabBtnActiveExpense: {
-    backgroundColor: '#EF4444',
+    backgroundColor: 'rgba(244, 63, 94, 0.25)',
+    borderWidth: 1,
+    borderColor: theme.colors.danger,
   },
   tabBtnActiveIncome: {
-    backgroundColor: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 1,
+    borderColor: theme.colors.success,
   },
   tabBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#475569',
+    color: theme.colors.textSecondary,
   },
   tabBtnTextActive: {
     color: '#FFFFFF',
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   listHeader: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 14,
+    color: theme.colors.text,
+  },
+  hintText: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   categoryCard: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
+    width: '31%',
+    backgroundColor: theme.colors.surfaceCard,
+    padding: 12,
+    borderRadius: theme.radii.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   iconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    borderWidth: 1,
   },
   catName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 8,
+    minHeight: 28,
   },
-  editBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    gap: 4,
-  },
-  editBadgeText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
+  editIndicator: {
+    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: theme.colors.backdrop,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderTopLeftRadius: theme.radii.xl,
+    borderTopRightRadius: theme.radii.xl,
     padding: 24,
     maxHeight: '90%',
+    borderTopWidth: 1,
+    borderColor: theme.colors.borderLight,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -457,28 +505,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.3,
   },
   fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
     marginTop: 8,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   textInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
     marginBottom: 14,
-    color: '#0F172A',
+    color: theme.colors.text,
+    fontWeight: '600',
   },
   colorsRow: {
     flexDirection: 'row',
@@ -494,7 +545,7 @@ const styles = StyleSheet.create({
   },
   colorDotSelected: {
     borderWidth: 3,
-    borderColor: '#0F172A',
+    borderColor: '#FFFFFF',
   },
   iconsGrid: {
     flexDirection: 'row',
@@ -503,25 +554,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   iconPickerBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    width: 46,
+    height: 46,
+    borderRadius: theme.radii.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveBtn: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 16,
-    borderRadius: 16,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 15,
+    borderRadius: theme.radii.md,
     alignItems: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
   },
   saveBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   deleteBtn: {
     flexDirection: 'row',
@@ -532,8 +588,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   deleteBtnText: {
-    color: '#EF4444',
-    fontSize: 15,
+    color: theme.colors.dangerLight,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
